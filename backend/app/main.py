@@ -74,8 +74,16 @@ def _page_context(**extra) -> dict:
         "model": model,
         "model_label": MODEL_LABELS[model],
         "models": MODEL_LABELS,
+        "nav": extra.get("nav") or "squad",
+        "horizon": int(extra.get("horizon") or 1),
         **extra,
     }
+
+
+def _html(request: Request, name: str, ctx: dict, status_code: int = 200):
+    response = templates.TemplateResponse(request, name, ctx, status_code=status_code)
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.get("/health")
@@ -272,17 +280,36 @@ def admin_refresh(_: None = Depends(require_admin)):
 
 
 @app.get("/", response_class=HTMLResponse)
-def dashboard_page(request: Request, model: str = "B", session: Session = Depends(db_session)):
+def dashboard_page(
+    request: Request,
+    model: str = "B",
+    horizon: int = Query(default=1),
+    session: Session = Depends(db_session),
+):
+    from worker.model_league import league_table
+
     model = _normalise_model(model)
-    heads = []
-    for key, label in MODEL_LABELS.items():
-        payload = _picks_payload(session, model=key)
-        overall = next((p for p in payload.get("picks") or [] if p.get("category") == "Best overall" and p.get("name")), None)
-        heads.append({"model": key, "label": label, "pick": overall})
-    return templates.TemplateResponse(
+    if horizon not in {1, 3, 5}:
+        horizon = 1
+    table = league_table(session)
+    row = next((s for s in table["standings"] if s["model"] == model), None)
+    latest = (row or {}).get("latest")
+    squad = latest
+    if latest and horizon == 3 and latest.get("horizon_3"):
+        squad = latest["horizon_3"]
+    elif latest and horizon == 5 and latest.get("horizon_5"):
+        squad = latest["horizon_5"]
+    return _html(
         request,
         "dashboard.html",
-        _page_context(status=status(session), picks=_picks_payload(session, model=model), model_heads=heads, model=model),
+        _page_context(
+            status=status(session),
+            model=model,
+            nav="squad",
+            horizon=horizon,
+            squad=squad,
+            latest=latest,
+        ),
     )
 
 
@@ -291,10 +318,12 @@ def league_page(request: Request, model: str = "B", session: Session = Depends(d
     from worker.model_league import league_table
 
     model = _normalise_model(model)
-    return templates.TemplateResponse(
+    table = league_table(session)
+    selected = next((s for s in table["standings"] if s["model"] == model), None)
+    return _html(
         request,
         "league.html",
-        _page_context(league=league_table(session), model=model),
+        _page_context(league=table, selected=selected, model=model, nav="league"),
     )
 
 
@@ -307,11 +336,17 @@ def rankings_page(
 ):
     model = _normalise_model(model)
     payload = _rankings_payload(session, model=model, position=position, limit=80)
-    return templates.TemplateResponse(
+    return _html(
         request,
         "rankings.html",
-        _page_context(rows=payload.get("rows") or [], position=position, model=model),
+        _page_context(rows=payload.get("rows") or [], position=position, model=model, nav="rankings"),
     )
+
+
+@app.get("/my-team", response_class=HTMLResponse)
+def my_team_page(request: Request, model: str = "B"):
+    model = _normalise_model(model)
+    return _html(request, "my_team.html", _page_context(model=model, nav="squad"))
 
 
 @app.get("/players/{element_id}", response_class=HTMLResponse)
@@ -320,11 +355,12 @@ def player_page(element_id: int, request: Request, model: str = "B", session: Se
     try:
         player = _player_payload(session, element_id, model=model)
     except HTTPException:
-        return templates.TemplateResponse(
+        return _html(
             request,
             "player.html",
             _page_context(
                 model=model,
+                nav="rankings",
                 player={
                     "element": element_id,
                     "xpts_gw": 0,
@@ -339,11 +375,12 @@ def player_page(element_id: int, request: Request, model: str = "B", session: Se
             status_code=404,
         )
     expl = player.get("explanation") or {}
-    return templates.TemplateResponse(
+    return _html(
         request,
         "player.html",
         _page_context(
             model=model,
+            nav="rankings",
             player=player,
             expl=expl,
             components=player.get("components") or expl.get("components") or {},

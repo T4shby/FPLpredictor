@@ -9,6 +9,13 @@ Hostnames:
 
 ---
 
+## 2026-08-21 — Squad is the home page; model tabs switch the team
+
+- **Host:** `plesk.ashbystudios.com`
+- **Who:** `fplpredictor`
+- **Done:** pulled latest main. Restarted API. Ran daily refresh so 3GW/5GW squads are stored. Home is now the selected model's 15-man squad (XI, bench, C/VC). League tabs show that one team's XI. Rankings labelled as research. Cache-Control no-store on HTML.
+- **Follow-up:** hard-refresh `https://fpl.ashbystudios.com` (Ctrl+F5). A/B/C/D tabs now change the squad.
+
 ## 2026-08-21 — Model league now uses real £100m FPL squads
 
 - **Host:** `plesk.ashbystudios.com`

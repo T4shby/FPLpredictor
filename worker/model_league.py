@@ -70,6 +70,39 @@ def _build_squad(session: Session, result: dict, model_key: str, frame) -> dict:
     return select_squad(pool)
 
 
+def _horizon_pack(frame, xpts_col: str) -> dict | None:
+    if frame is None or xpts_col not in getattr(frame, "columns", []):
+        return None
+    try:
+        return select_squad(trim_pool(frame_to_players(frame, xpts_col=xpts_col)), max_swaps=250)
+    except ValueError:
+        return None
+
+
+def _view_from_pack(pack: dict, extra: dict | None = None) -> dict:
+    players = pack.get("players") or []
+    cap_el = pack.get("captain_element")
+    vice_el = pack.get("vice_element")
+    captain = next((p for p in players if p.get("element") == cap_el), {})
+    vice = next((p for p in players if p.get("element") == vice_el), {})
+    view = {
+        "formation": pack.get("formation") or "",
+        "captain": captain.get("name"),
+        "captain_element": cap_el,
+        "vice": vice.get("name"),
+        "vice_element": vice_el,
+        "cost": round(int(pack.get("cost_tenths") or 0) / 10.0, 1),
+        "bank": round(int(pack.get("bank_tenths") or 0) / 10.0, 1),
+        "xpts_xi": pack.get("xpts_xi") or 0,
+        "n_transfers": pack.get("n_transfers") or 0,
+        "starters": [p for p in players if p.get("starter")],
+        "bench": [p for p in players if not p.get("starter")],
+    }
+    if extra:
+        view.update(extra)
+    return view
+
+
 def freeze_model_picks(session: Session, result: dict) -> list[dict]:
     """Build/refresh each model's £100m squad until deadline, then lock. Never rewrite a locked squad."""
     now = datetime.now(timezone.utc)
@@ -85,12 +118,20 @@ def freeze_model_picks(session: Session, result: dict) -> list[dict]:
             .one_or_none()
         )
         if existing is not None and existing.locked:
+            if existing.horizon_3 is None:
+                existing.horizon_3 = _horizon_pack(frame, "xpts_3gw")
+            if existing.horizon_5 is None:
+                existing.horizon_5 = _horizon_pack(frame, "xpts_5gw")
             captain = next((p for p in existing.players if p.get("element") == existing.captain_element), {})
             frozen.append({"model": spec.key, "status": "locked", "name": captain.get("name"), "formation": existing.formation})
             continue
         if existing is not None and lock:
             existing.locked = True
             existing.frozen_at = now
+            if existing.horizon_3 is None:
+                existing.horizon_3 = _horizon_pack(frame, "xpts_3gw")
+            if existing.horizon_5 is None:
+                existing.horizon_5 = _horizon_pack(frame, "xpts_5gw")
             captain = next((p for p in existing.players if p.get("element") == existing.captain_element), {})
             frozen.append({"model": spec.key, "status": "locked", "name": captain.get("name"), "formation": existing.formation})
             continue
@@ -104,6 +145,8 @@ def freeze_model_picks(session: Session, result: dict) -> list[dict]:
             xpts_xi=float(built["xpts_xi"]),
             n_transfers=int(built["n_transfers"]),
             players=built["players"],
+            horizon_3=_horizon_pack(frame, "xpts_3gw"),
+            horizon_5=_horizon_pack(frame, "xpts_5gw"),
             locked=lock,
             frozen_at=now,
         )
@@ -193,27 +236,28 @@ def league_table(session: Session) -> dict:
         if actual is not None:
             bucket["total"] += float(actual)
         players = row.players or []
-        captain = next((p for p in players if p.get("element") == row.captain_element), {})
-        vice = next((p for p in players if p.get("element") == row.vice_element), {})
-        bucket["weeks"].append(
-            {
+        pack = {
+            "players": players,
+            "formation": row.formation,
+            "captain_element": row.captain_element,
+            "vice_element": row.vice_element,
+            "cost_tenths": row.cost_tenths,
+            "bank_tenths": row.bank_tenths,
+            "xpts_xi": row.xpts_xi,
+            "n_transfers": row.n_transfers,
+        }
+        week = _view_from_pack(
+            pack,
+            extra={
                 "event_id": row.event_id,
-                "formation": row.formation,
-                "captain": captain.get("name"),
-                "captain_element": row.captain_element,
-                "vice": vice.get("name"),
-                "vice_element": row.vice_element,
-                "cost": round(row.cost_tenths / 10.0, 1),
-                "bank": round(row.bank_tenths / 10.0, 1),
-                "xpts_xi": row.xpts_xi,
                 "actual_points": actual,
-                "n_transfers": row.n_transfers,
                 "locked": row.locked,
-                "starters": [p for p in players if p.get("starter")],
-                "bench": [p for p in players if not p.get("starter")],
                 "frozen_at": row.frozen_at.isoformat() if row.frozen_at else None,
-            }
+                "horizon_3": _view_from_pack(row.horizon_3) if row.horizon_3 else None,
+                "horizon_5": _view_from_pack(row.horizon_5) if row.horizon_5 else None,
+            },
         )
+        bucket["weeks"].append(week)
     standings = sorted(by_model.values(), key=lambda row: (-row["total"], row["model"]))
     for row in standings:
         row["weeks"] = sorted(row["weeks"], key=lambda week: week["event_id"])

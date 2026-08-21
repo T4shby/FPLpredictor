@@ -34,9 +34,9 @@ def test_html_dashboard_without_data():
     response = client.get("/")
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
-    assert b"FPL Predictor" in response.content
-    assert b"A" in response.content
-    assert b"Form" in response.content
+    assert b"Squad" in response.content
+    assert b"Starting XI" in response.content or b"No squad yet" in response.content
+    assert response.headers.get("cache-control") == "no-store"
 
 
 def test_html_dashboard_model_query():
@@ -44,6 +44,15 @@ def test_html_dashboard_model_query():
     response = client.get("/?model=D")
     assert response.status_code == 200
     assert b"Full" in response.content
+
+
+def test_html_league_model_tab_shows_one_squad():
+    client = TestClient(app)
+    response = client.get("/league?model=B")
+    assert response.status_code == 200
+    assert b"/league?model=A" in response.content
+    assert b"/league?model=B" in response.content
+    assert response.content.count(b"<h2>") <= 1
 
 
 def test_picks_endpoint_without_runs():

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}My team{% endblock %}
+{% block body %}
+<main>
+  <h1>Your squad</h1>
+  <p>
+    Recommendations against an existing FPL team (transfers, hits, captain) are <strong>not built yet</strong>.
+    The live product today is each model's own £100m squad on the <a href="/?model={{ model }}">Squad</a> page.
+  </p>
+  <p class="muted">TODO: import a team by FPL ID, then suggest transfers from the selected model's xPts.</p>
+</main>
+{% endblock %}

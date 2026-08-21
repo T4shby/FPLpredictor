@@ -1,48 +1,87 @@
 {% extends "base.html" %}
-{% block title %}GW {{ picks.event_id or status.next_gameweek or "—" }} · Model {{ model }}{% endblock %}
+{% block title %}Squad · {{ model_label }}{% endblock %}
 {% block body %}
 <main>
-  <h1>Gameweek {{ picks.event_id or status.next_gameweek or "—" }}</h1>
+  <h1>{{ model_label }}</h1>
   <p class="muted">
-    Season {{ status.season }} · deadline {{ status.next_deadline or "unknown" }} · data {{ status.data_status }} · refresh {{ status.daily_refresh }}
+    Season {{ status.season }} · GW {{ latest.event_id if latest else status.next_gameweek or "—" }}
+    · deadline {{ status.next_deadline or "unknown" }} · refresh {{ status.daily_refresh }}
   </p>
+  <div class="filters">
+    <a href="/?model={{ model }}&horizon=1" class="{% if horizon == 1 %}active{% endif %}">This GW</a>
+    <a href="/?model={{ model }}&horizon=3" class="{% if horizon == 3 %}active{% endif %}">Next 3 GW</a>
+    <a href="/?model={{ model }}&horizon=5" class="{% if horizon == 5 %}active{% endif %}">Next 5 GW</a>
+  </div>
+  {% if squad and squad.starters %}
   <p>
-    This season the four models play FPL against each other: each picks a legal
-    <strong>£100m squad</strong> (15, starting XI, captain, max 3 per club). See the
-    <a href="/league">league table</a>. Last season's walk-forward is lab evidence only.
+    Legal <strong>£100m</strong> FPL squad: 15 players, starting XI, bench order, captain, vice-captain.
+    Predicted XI score includes the captain double.
+    {% if horizon != 1 %}This is a separate squad built for the {{ horizon }}-GW horizon, not the live league team.{% endif %}
   </p>
-  <h2>Best overall by model</h2>
   <div class="grid">
-    {% for head in model_heads %}
     <article class="card">
-      <h3>{{ head.label }}</h3>
-      {% if head.pick and head.pick.name %}
-      <strong><a href="/players/{{ head.pick.element }}?model={{ head.model }}">{{ head.pick.name }}</a></strong>
-      <div class="muted">{{ head.pick.team }} · {{ head.pick.position }} · GW {{ "%.2f"|format(head.pick.xpts_gw or 0) }}</div>
-      <div><a href="/?model={{ head.model }}">Open {{ head.model }} picks →</a></div>
-      {% else %}
-      <div class="muted">n/a</div>
-      {% endif %}
+      <h3>Formation</h3>
+      <strong>{{ squad.formation }}</strong>
     </article>
-    {% endfor %}
-  </div>
-  <h2>Picks · {{ model_label }}</h2>
-  <div class="grid">
-    {% for pick in picks.picks[:12] %}
     <article class="card">
-      <h3>{{ pick.category }}</h3>
-      {% if pick.name %}
-      <strong><a href="/players/{{ pick.element }}?model={{ model }}">{{ pick.name }}</a></strong>
-      <div class="muted">{{ pick.team }} · {{ pick.position }} · £{{ "%.1f"|format(pick.price or 0) }} · {{ pick.ownership }}%</div>
-      <div>GW {{ "%.2f"|format(pick.xpts_gw or 0) }} · 3GW {{ "%.2f"|format(pick.xpts_3gw or 0) }} · 5GW {{ "%.2f"|format(pick.xpts_5gw or 0) }}</div>
-      {% else %}
-      <div class="muted">n/a</div>
-      {% endif %}
+      <h3>Predicted XI</h3>
+      <strong>{{ "%.2f"|format(squad.xpts_xi or 0) }}</strong>
+      <div class="muted">{% if horizon == 1 %}this GW{% elif horizon == 3 %}next 3 GW{% else %}next 5 GW{% endif %}</div>
     </article>
-    {% else %}
-    <article class="card"><p class="muted">No predictions yet for this model.</p></article>
-    {% endfor %}
+    <article class="card">
+      <h3>Cost / bank</h3>
+      <strong>£{{ "%.1f"|format(squad.cost or 0) }}m</strong>
+      <div class="muted">bank £{{ "%.1f"|format(squad.bank or 0) }}m</div>
+    </article>
+    <article class="card">
+      <h3>Captain</h3>
+      <strong><a href="/players/{{ squad.captain_element }}?model={{ model }}">{{ squad.captain }}</a></strong>
+      <div class="muted">VC {{ squad.vice }}</div>
+    </article>
   </div>
-  <p><a href="/rankings?model={{ model }}">Open {{ model }} rankings →</a></p>
+  <h2>Starting XI</h2>
+  <table>
+    <thead>
+      <tr><th>Pos</th><th>Player</th><th>Team</th><th class="num">£</th><th class="num">xPts</th></tr>
+    </thead>
+    <tbody>
+      {% for p in squad.starters %}
+      <tr>
+        <td>{{ p.position }}{% if p.element == squad.captain_element %} (C){% elif p.element == squad.vice_element %} (VC){% endif %}</td>
+        <td><a href="/players/{{ p.element }}?model={{ model }}">{{ p.name }}</a></td>
+        <td>{{ p.team }}</td>
+        <td class="num">{{ "%.1f"|format((p.now_cost or 0) / 10.0) }}</td>
+        <td class="num">{{ "%.2f"|format(p.xpts_gw or 0) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <h2>Bench</h2>
+  <table>
+    <thead>
+      <tr><th>#</th><th>Pos</th><th>Player</th><th>Team</th><th class="num">£</th><th class="num">xPts</th></tr>
+    </thead>
+    <tbody>
+      {% for p in squad.bench %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ p.position }}</td>
+        <td><a href="/players/{{ p.element }}?model={{ model }}">{{ p.name }}</a></td>
+        <td>{{ p.team }}</td>
+        <td class="num">{{ "%.1f"|format((p.now_cost or 0) / 10.0) }}</td>
+        <td class="num">{{ "%.2f"|format(p.xpts_gw or 0) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No squad yet for this model. Wait for a refresh.</p>
+  {% endif %}
+  <p class="muted">
+    Player rankings are a research view.
+    <a href="/rankings?model={{ model }}">Open rankings</a> ·
+    <a href="/league?model={{ model }}">Model league</a> ·
+    <a href="/my-team?model={{ model }}">Import your team</a> (not built yet)
+  </p>
 </main>
 {% endblock %}

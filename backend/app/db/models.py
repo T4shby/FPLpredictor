@@ -270,6 +270,8 @@ class ModelSquad(Base):
     actual_points: Mapped[float | None] = mapped_column(Float, nullable=True)
     n_transfers: Mapped[int] = mapped_column(Integer, default=0)
     players: Mapped[list] = mapped_column(JSONType, nullable=False)
+    horizon_3: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
+    horizon_5: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
     locked: Mapped[bool] = mapped_column(Boolean, default=False)
     frozen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     scored_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -343,3 +345,19 @@ def get_session_factory():
 def init_db() -> None:
     engine = get_engine()
     Base.metadata.create_all(engine)
+    _sqlite_add_columns(engine)
+
+
+def _sqlite_add_columns(engine) -> None:
+    if not str(engine.url).startswith("sqlite"):
+        return
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        rows = conn.execute(text("PRAGMA table_info(model_squads)")).fetchall()
+        if not rows:
+            return
+        cols = {row[1] for row in rows}
+        for col in ("horizon_3", "horizon_5"):
+            if col not in cols:
+                conn.execute(text(f"ALTER TABLE model_squads ADD COLUMN {col} JSON"))

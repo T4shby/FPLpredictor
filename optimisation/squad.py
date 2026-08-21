@@ -22,7 +22,7 @@ def squad_rules(rules: dict | None = None) -> dict:
     }
 
 
-def frame_to_players(frame) -> list[dict]:
+def frame_to_players(frame, xpts_col: str = "xpts_gw") -> list[dict]:
     players = []
     if frame is None or getattr(frame, "empty", True):
         return players
@@ -43,7 +43,7 @@ def frame_to_players(frame) -> list[dict]:
                 "team": str(row.get("team") or ""),
                 "position": position,
                 "now_cost": cost,
-                "xpts_gw": float(row.get("xpts_gw") or 0),
+                "xpts_gw": float(row.get(xpts_col) or row.get("xpts_gw") or 0),
                 "expected_minutes": float(row.get("expected_minutes") or 0),
             }
         )

@@ -3,25 +3,27 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-store">
   <title>{% block title %}FPL Predictor{% endblock %}</title>
-  <link rel="stylesheet" href="/static/app.css">
+  <link rel="stylesheet" href="/static/app.css?v=3">
 </head>
 <body>
   <div class="wrap">
     <header class="site">
       <div>
         <a href="/?model={{ model }}">FPL Predictor</a>
-        <div class="muted">{{ model_label }} · 2026/27</div>
+        <div class="muted">{{ model_label }} · 2026/27 · squad optimiser</div>
       </div>
       <nav>
-        <a href="/?model={{ model }}">Dashboard</a>
-        <a href="/league">League</a>
-        <a href="/rankings?model={{ model }}">Rankings</a>
+        <a href="/?model={{ model }}" class="{% if nav == 'squad' %}active{% endif %}">Squad</a>
+        <a href="/league?model={{ model }}" class="{% if nav == 'league' %}active{% endif %}">League</a>
+        <a href="/rankings?model={{ model }}" class="{% if nav == 'rankings' %}active{% endif %}">Rankings</a>
+        <a href="/my-team?model={{ model }}">My team</a>
       </nav>
     </header>
     <div class="filters models">
       {% for key, label in models.items() %}
-      <a href="?model={{ key }}{% if position %}&position={{ position }}{% endif %}" class="{% if model == key %}active{% endif %}">{{ label }}</a>
+      <a href="{{ request.url.path }}?model={{ key }}{% if horizon and horizon != 1 %}&horizon={{ horizon }}{% endif %}{% if position %}&position={{ position }}{% endif %}" class="{% if model == key %}active{% endif %}">{{ label }}</a>
       {% endfor %}
     </div>
     {% block body %}{% endblock %}

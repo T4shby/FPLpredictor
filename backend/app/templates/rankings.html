@@ -3,7 +3,8 @@
 {% block body %}
 <main>
   <h1>Rankings</h1>
-  <p class="muted">{{ model_label }} · GW xPts · {{ rows|length }} players</p>
+  <p class="muted">Research view of player xPts for {{ model_label }}. The product is the <a href="/?model={{ model }}">squad</a>.</p>
+  <p class="muted">{{ rows|length }} players</p>
   <div class="filters">
     <a href="/rankings?model={{ model }}" class="{% if not position %}active{% endif %}">All</a>
     {% for pos in ["GKP", "DEF", "MID", "FWD"] %}

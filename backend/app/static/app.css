@@ -20,6 +20,7 @@ a:hover { text-decoration: underline; }
 .wrap { max-width: 1100px; margin: 0 auto; padding: 1.25rem; }
 header.site { display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; border-bottom: 1px solid var(--line); margin-bottom: 1.25rem; padding-bottom: 0.75rem; }
 nav { display: flex; gap: 1rem; }
+header.site nav a.active { font-weight: 700; color: var(--accent); }
 .muted { color: var(--muted); }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem; }
 .card { background: var(--card); border: 1px solid var(--line); padding: 0.85rem 0.95rem; }
