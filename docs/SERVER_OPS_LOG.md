@@ -9,6 +9,14 @@ Hostnames:
 
 ---
 
+## 2026-08-21 — Model A/B/C/D tabs on the live site
+
+- **Host:** `plesk.ashbystudios.com`
+- **Who:** `fplpredictor`
+- **Done:** `git pull --ff-only origin main` to `7d93f2e`. `sudo systemctl restart fpl-predictor`. `GET /?model=D` → 200. Dashboard now has tabs for all four models; default remains B.
+- **Note:** server had a local edit to `docs/PREDICTIONS_2026_27_GW1.md` from the first refresh (left uncommitted).
+- **Follow-up:** hard-refresh the browser on `https://fpl.ashbystudios.com`.
+
 ## 2026-08-21 — First SSH install on Plesk
 
 - **Host:** `plesk.ashbystudios.com`
