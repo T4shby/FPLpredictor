@@ -1,18 +1,34 @@
 {% extends "base.html" %}
-{% block title %}GW {{ picks.event_id or status.next_gameweek or "—" }} · FPL Predictor{% endblock %}
+{% block title %}GW {{ picks.event_id or status.next_gameweek or "—" }} · Model {{ model }}{% endblock %}
 {% block body %}
 <main>
   <h1>Gameweek {{ picks.event_id or status.next_gameweek or "—" }}</h1>
   <p class="muted">
     Season {{ status.season }} · deadline {{ status.next_deadline or "unknown" }} · data {{ status.data_status }} · refresh {{ status.daily_refresh }}
   </p>
-  <p>Primary model is <strong>B (form + fixture)</strong>. Rankings skip players projected under 1 minute.</p>
+  <p>All four models are stored. <strong>B</strong> had the best 2025/26 MAE; <strong>D</strong> ranked captains better but over-weights clean sheets. Use the tabs to switch.</p>
+  <h2>Best overall by model</h2>
+  <div class="grid">
+    {% for head in model_heads %}
+    <article class="card">
+      <h3>{{ head.label }}</h3>
+      {% if head.pick and head.pick.name %}
+      <strong><a href="/players/{{ head.pick.element }}?model={{ head.model }}">{{ head.pick.name }}</a></strong>
+      <div class="muted">{{ head.pick.team }} · {{ head.pick.position }} · GW {{ "%.2f"|format(head.pick.xpts_gw or 0) }}</div>
+      <div><a href="/?model={{ head.model }}">Open {{ head.model }} picks →</a></div>
+      {% else %}
+      <div class="muted">n/a</div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  <h2>Picks · {{ model_label }}</h2>
   <div class="grid">
     {% for pick in picks.picks[:12] %}
     <article class="card">
       <h3>{{ pick.category }}</h3>
       {% if pick.name %}
-      <strong><a href="/players/{{ pick.element }}">{{ pick.name }}</a></strong>
+      <strong><a href="/players/{{ pick.element }}?model={{ model }}">{{ pick.name }}</a></strong>
       <div class="muted">{{ pick.team }} · {{ pick.position }} · £{{ "%.1f"|format(pick.price or 0) }} · {{ pick.ownership }}%</div>
       <div>GW {{ "%.2f"|format(pick.xpts_gw or 0) }} · 3GW {{ "%.2f"|format(pick.xpts_3gw or 0) }} · 5GW {{ "%.2f"|format(pick.xpts_5gw or 0) }}</div>
       {% else %}
@@ -20,9 +36,9 @@
       {% endif %}
     </article>
     {% else %}
-    <article class="card"><p class="muted">No predictions yet. Wait for the 06:00 refresh or POST /api/v1/admin/refresh.</p></article>
+    <article class="card"><p class="muted">No predictions yet for this model.</p></article>
     {% endfor %}
   </div>
-  <p><a href="/rankings">Open full rankings →</a></p>
+  <p><a href="/rankings?model={{ model }}">Open {{ model }} rankings →</a></p>
 </main>
 {% endblock %}

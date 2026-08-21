@@ -35,6 +35,15 @@ def test_html_dashboard_without_data():
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     assert b"FPL Predictor" in response.content
+    assert b"A" in response.content
+    assert b"Form" in response.content
+
+
+def test_html_dashboard_model_query():
+    client = TestClient(app)
+    response = client.get("/?model=D")
+    assert response.status_code == 200
+    assert b"Full" in response.content
 
 
 def test_picks_endpoint_without_runs():

@@ -32,4 +32,6 @@ th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; colo
 .filters { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.75rem 0; }
 .filters a { border: 1px solid var(--line); background: var(--card); padding: 0.25rem 0.55rem; }
 .filters a.active { border-color: var(--accent); color: var(--accent); }
+.filters.models { margin: 0 0 1rem; }
+h2 { font-size: 1.05rem; margin: 1.25rem 0 0.6rem; }
 ul.factors { margin: 0.4rem 0 0; padding-left: 1.1rem; }

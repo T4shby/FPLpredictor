@@ -10,14 +10,19 @@
   <div class="wrap">
     <header class="site">
       <div>
-        <a href="/">FPL Predictor</a>
-        <div class="muted">Model B xPts · 2026/27</div>
+        <a href="/?model={{ model }}">FPL Predictor</a>
+        <div class="muted">{{ model_label }} · 2026/27</div>
       </div>
       <nav>
-        <a href="/">Dashboard</a>
-        <a href="/rankings">Rankings</a>
+        <a href="/?model={{ model }}">Dashboard</a>
+        <a href="/rankings?model={{ model }}">Rankings</a>
       </nav>
     </header>
+    <div class="filters models">
+      {% for key, label in models.items() %}
+      <a href="?model={{ key }}{% if position %}&position={{ position }}{% endif %}" class="{% if model == key %}active{% endif %}">{{ label }}</a>
+      {% endfor %}
+    </div>
     {% block body %}{% endblock %}
   </div>
 </body>

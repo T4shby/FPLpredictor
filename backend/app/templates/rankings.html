@@ -3,11 +3,11 @@
 {% block body %}
 <main>
   <h1>Rankings</h1>
-  <p class="muted">Model B · GW xPts · {{ rows|length }} players</p>
+  <p class="muted">{{ model_label }} · GW xPts · {{ rows|length }} players</p>
   <div class="filters">
-    <a href="/rankings" class="{% if not position %}active{% endif %}">All</a>
+    <a href="/rankings?model={{ model }}" class="{% if not position %}active{% endif %}">All</a>
     {% for pos in ["GKP", "DEF", "MID", "FWD"] %}
-    <a href="/rankings?position={{ pos }}" class="{% if position == pos %}active{% endif %}">{{ pos }}</a>
+    <a href="/rankings?model={{ model }}&position={{ pos }}" class="{% if position == pos %}active{% endif %}">{{ pos }}</a>
     {% endfor %}
   </div>
   <table>
@@ -22,7 +22,7 @@
       {% for row in rows %}
       <tr>
         <td>{{ loop.index }}</td>
-        <td><a href="/players/{{ row.element }}">{{ row.name or row.element }}</a></td>
+        <td><a href="/players/{{ row.element }}?model={{ model }}">{{ row.name or row.element }}</a></td>
         <td>{{ row.team }}</td>
         <td>{{ row.position }}</td>
         <td>{% if row.was_home == true %}(H) {% elif row.was_home == false %}(A) {% endif %}{{ row.opponent or "" }}</td>

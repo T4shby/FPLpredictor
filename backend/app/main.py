@@ -21,6 +21,13 @@ configure_logging(get_settings().log_level)
 APP_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(APP_DIR / "templates"))
 
+MODEL_LABELS = {
+    "A": "A · Form",
+    "B": "B · Form + fixture",
+    "C": "C · Form + fixture + xG",
+    "D": "D · Full (uncalibrated)",
+}
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -52,6 +59,23 @@ def require_admin(x_admin_token: str | None = Header(default=None, alias="X-Admi
     settings = get_settings()
     if not x_admin_token or x_admin_token != settings.admin_api_token:
         raise HTTPException(status_code=401, detail="Invalid admin token")
+
+
+def _normalise_model(model: str | None) -> str:
+    key = (model or "B").strip().upper()
+    if key not in MODEL_LABELS:
+        raise HTTPException(status_code=400, detail="model must be A, B, C, or D")
+    return key
+
+
+def _page_context(**extra) -> dict:
+    model = extra.get("model") or "B"
+    return {
+        "model": model,
+        "model_label": MODEL_LABELS[model],
+        "models": MODEL_LABELS,
+        **extra,
+    }
 
 
 @app.get("/health")
@@ -220,17 +244,17 @@ def rankings(
     limit: int = 50,
     session: Session = Depends(db_session),
 ):
-    return _rankings_payload(session, model=model, position=position, limit=limit)
+    return _rankings_payload(session, model=_normalise_model(model), position=position, limit=limit)
 
 
 @app.get("/api/v1/picks")
 def picks(model: str = Query(default="B"), session: Session = Depends(db_session)):
-    return _picks_payload(session, model=model)
+    return _picks_payload(session, model=_normalise_model(model))
 
 
 @app.get("/api/v1/players/{element_id}")
 def player_detail(element_id: int, model: str = "B", session: Session = Depends(db_session)):
-    return _player_payload(session, element_id, model=model)
+    return _player_payload(session, element_id, model=_normalise_model(model))
 
 
 @app.post("/api/v1/admin/refresh")
@@ -241,38 +265,48 @@ def admin_refresh(_: None = Depends(require_admin)):
 
 
 @app.get("/", response_class=HTMLResponse)
-def dashboard_page(request: Request, session: Session = Depends(db_session)):
+def dashboard_page(request: Request, model: str = "B", session: Session = Depends(db_session)):
+    model = _normalise_model(model)
+    heads = []
+    for key, label in MODEL_LABELS.items():
+        payload = _picks_payload(session, model=key)
+        overall = next((p for p in payload.get("picks") or [] if p.get("category") == "Best overall" and p.get("name")), None)
+        heads.append({"model": key, "label": label, "pick": overall})
     return templates.TemplateResponse(
         request,
         "dashboard.html",
-        {"status": status(session), "picks": _picks_payload(session)},
+        _page_context(status=status(session), picks=_picks_payload(session, model=model), model_heads=heads, model=model),
     )
 
 
 @app.get("/rankings", response_class=HTMLResponse)
 def rankings_page(
     request: Request,
+    model: str = "B",
     position: str | None = None,
     session: Session = Depends(db_session),
 ):
-    payload = _rankings_payload(session, position=position, limit=80)
+    model = _normalise_model(model)
+    payload = _rankings_payload(session, model=model, position=position, limit=80)
     return templates.TemplateResponse(
         request,
         "rankings.html",
-        {"rows": payload.get("rows") or [], "position": position},
+        _page_context(rows=payload.get("rows") or [], position=position, model=model),
     )
 
 
 @app.get("/players/{element_id}", response_class=HTMLResponse)
-def player_page(element_id: int, request: Request, session: Session = Depends(db_session)):
+def player_page(element_id: int, request: Request, model: str = "B", session: Session = Depends(db_session)):
+    model = _normalise_model(model)
     try:
-        player = _player_payload(session, element_id)
+        player = _player_payload(session, element_id, model=model)
     except HTTPException:
         return templates.TemplateResponse(
             request,
             "player.html",
-            {
-                "player": {
+            _page_context(
+                model=model,
+                player={
                     "element": element_id,
                     "xpts_gw": 0,
                     "xpts_3gw": 0,
@@ -280,18 +314,19 @@ def player_page(element_id: int, request: Request, session: Session = Depends(db
                     "expected_minutes": 0,
                     "start_probability": 0,
                 },
-                "expl": {"name": f"Player {element_id} not in latest run", "positives": [], "negatives": []},
-                "components": {},
-            },
+                expl={"name": f"Player {element_id} not in latest run", "positives": [], "negatives": []},
+                components={},
+            ),
             status_code=404,
         )
     expl = player.get("explanation") or {}
     return templates.TemplateResponse(
         request,
         "player.html",
-        {
-            "player": player,
-            "expl": expl,
-            "components": player.get("components") or expl.get("components") or {},
-        },
+        _page_context(
+            model=model,
+            player=player,
+            expl=expl,
+            components=player.get("components") or expl.get("components") or {},
+        ),
     )

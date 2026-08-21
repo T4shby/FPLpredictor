@@ -2,7 +2,7 @@
 {% block title %}{{ expl.name or ("Player " ~ player.element) }} · FPL Predictor{% endblock %}
 {% block body %}
 <main>
-  <p><a href="/rankings">← Rankings</a></p>
+  <p><a href="/rankings?model={{ model }}">← Rankings</a></p>
   <h1>{{ expl.name or ("Player " ~ player.element) }}</h1>
   <p class="muted">{{ expl.team }} · {{ expl.position }}</p>
   <div class="grid">
