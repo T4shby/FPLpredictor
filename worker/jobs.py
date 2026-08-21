@@ -15,12 +15,15 @@ logger = logging.getLogger(__name__)
 RETRY_DELAYS_MINUTES = (0, 10, 30, 60)
 
 
-def run_daily_refresh(triggered_by: str = "schedule") -> dict:
+def run_daily_refresh(triggered_by: str = "schedule", max_attempts: int | None = None) -> dict:
     settings = get_settings()
     init_db()
     factory = get_session_factory()
     last_error = None
-    for attempt, delay in enumerate(RETRY_DELAYS_MINUTES, start=1):
+    delays = RETRY_DELAYS_MINUTES
+    if triggered_by == "cron" or max_attempts == 1:
+        delays = (0,)
+    for attempt, delay in enumerate(delays, start=1):
         if delay:
             logger.info("refresh_retry_wait minutes=%s attempt=%s", delay, attempt)
             time.sleep(delay * 60)

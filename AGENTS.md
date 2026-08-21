@@ -17,6 +17,8 @@ Do not spend time on visual dashboard polish until the 2025/26 backtest report e
 
 Ask the user only for genuine product decisions, unavailable data, security issues, or blockers.
 
+**Live servers:** append every SSH/install/config change to `docs/SERVER_OPS_LOG.md` in the same turn. Never log secret values.
+
 ## Key commands
 
 ```bash

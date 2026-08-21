@@ -1,0 +1,3 @@
+# Deploy user may install/restart FPL systemd + cron only.
+Cmnd_Alias FPLCTL = /bin/systemctl start fpl-predictor, /bin/systemctl stop fpl-predictor, /bin/systemctl restart fpl-predictor, /bin/systemctl status fpl-predictor, /bin/systemctl enable fpl-predictor, /bin/systemctl disable fpl-predictor, /bin/systemctl daemon-reload, /usr/bin/cp /opt/fplpredictor/deploy/plesk/fpl-predictor.service /etc/systemd/system/fpl-predictor.service, /usr/bin/cp /opt/fplpredictor/deploy/plesk/fpl-predictor.cron /etc/cron.d/fpl-predictor, /usr/bin/chmod 644 /etc/cron.d/fpl-predictor
+fplpredictor ALL=(root) NOPASSWD: FPLCTL

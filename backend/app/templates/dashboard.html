@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}GW {{ picks.event_id or status.next_gameweek or "—" }} · FPL Predictor{% endblock %}
+{% block body %}
+<main>
+  <h1>Gameweek {{ picks.event_id or status.next_gameweek or "—" }}</h1>
+  <p class="muted">
+    Season {{ status.season }} · deadline {{ status.next_deadline or "unknown" }} · data {{ status.data_status }} · refresh {{ status.daily_refresh }}
+  </p>
+  <p>Primary model is <strong>B (form + fixture)</strong>. Rankings skip players projected under 1 minute.</p>
+  <div class="grid">
+    {% for pick in picks.picks[:12] %}
+    <article class="card">
+      <h3>{{ pick.category }}</h3>
+      {% if pick.name %}
+      <strong><a href="/players/{{ pick.element }}">{{ pick.name }}</a></strong>
+      <div class="muted">{{ pick.team }} · {{ pick.position }} · £{{ "%.1f"|format(pick.price or 0) }} · {{ pick.ownership }}%</div>
+      <div>GW {{ "%.2f"|format(pick.xpts_gw or 0) }} · 3GW {{ "%.2f"|format(pick.xpts_3gw or 0) }} · 5GW {{ "%.2f"|format(pick.xpts_5gw or 0) }}</div>
+      {% else %}
+      <div class="muted">n/a</div>
+      {% endif %}
+    </article>
+    {% else %}
+    <article class="card"><p class="muted">No predictions yet. Wait for the 06:00 refresh or POST /api/v1/admin/refresh.</p></article>
+    {% endfor %}
+  </div>
+  <p><a href="/rankings">Open full rankings →</a></p>
+</main>
+{% endblock %}

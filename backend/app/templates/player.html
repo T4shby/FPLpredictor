@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ expl.name or ("Player " ~ player.element) }} · FPL Predictor{% endblock %}
+{% block body %}
+<main>
+  <p><a href="/rankings">← Rankings</a></p>
+  <h1>{{ expl.name or ("Player " ~ player.element) }}</h1>
+  <p class="muted">{{ expl.team }} · {{ expl.position }}</p>
+  <div class="grid">
+    <article class="card"><h3>GW xPts</h3><strong>{{ "%.2f"|format(player.xpts_gw) }}</strong></article>
+    <article class="card"><h3>Next 3</h3><strong>{{ "%.2f"|format(player.xpts_3gw or 0) }}</strong></article>
+    <article class="card"><h3>Next 5</h3><strong>{{ "%.2f"|format(player.xpts_5gw or 0) }}</strong></article>
+    <article class="card"><h3>Expected minutes</h3><strong>{{ "%.0f"|format(player.expected_minutes or 0) }}</strong><div class="muted">start {{ "%.2f"|format(player.start_probability or 0) }}</div></article>
+  </div>
+  <h2>Components</h2>
+  <table>
+    <tbody>
+      {% for key, value in components.items() %}
+      <tr><td>{{ key }}</td><td class="num">{{ "%.2f"|format(value) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="grid" style="margin-top:1rem">
+    <article class="card">
+      <h3>Positive</h3>
+      <ul class="factors">{% for item in expl.positives or [] %}<li>{{ item }}</li>{% endfor %}</ul>
+    </article>
+    <article class="card">
+      <h3>Negative</h3>
+      <ul class="factors">{% for item in expl.negatives or [] %}<li>{{ item }}</li>{% endfor %}</ul>
+    </article>
+  </div>
+</main>
+{% endblock %}

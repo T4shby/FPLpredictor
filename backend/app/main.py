@@ -3,8 +3,13 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from pathlib import Path
+
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from backend.app.core.logging import configure_logging
@@ -12,6 +17,9 @@ from backend.app.core.settings import get_settings
 from backend.app.db.models import Gameweek, ModelRun, PlayerPrediction, SystemJob, get_session_factory, init_db
 
 configure_logging(get_settings().log_level)
+
+APP_DIR = Path(__file__).resolve().parent
+templates = Jinja2Templates(directory=str(APP_DIR / "templates"))
 
 
 @asynccontextmanager
@@ -21,6 +29,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="FPL Predictor", version="0.1.0", lifespan=lifespan)
+app.mount("/static", StaticFiles(directory=str(APP_DIR / "static")), name="static")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -94,19 +103,17 @@ def status(session: Session = Depends(db_session)):
     }
 
 
-@app.get("/api/v1/rankings")
-def rankings(
-    model: str = Query(default="B"),
-    position: str | None = None,
-    limit: int = 50,
-    session: Session = Depends(db_session),
-):
-    latest = (
+def _latest_run(session: Session, model: str) -> ModelRun | None:
+    return (
         session.query(ModelRun)
         .filter(ModelRun.model_key == model, ModelRun.status == "completed")
         .order_by(ModelRun.id.desc())
         .first()
     )
+
+
+def _rankings_payload(session: Session, model: str = "B", position: str | None = None, limit: int = 50) -> dict:
+    latest = _latest_run(session, model)
     if latest is None:
         return {"model": model, "rows": [], "note": "No completed prediction run yet."}
     query = session.query(PlayerPrediction).filter(PlayerPrediction.model_run_id == latest.id)
@@ -145,20 +152,14 @@ def rankings(
     return {"model": model, "model_run_id": latest.id, "event_id": latest.target_event_id, "rows": payload}
 
 
-@app.get("/api/v1/picks")
-def picks(model: str = Query(default="B"), session: Session = Depends(db_session)):
+def _picks_payload(session: Session, model: str = "B") -> dict:
     import pandas as pd
 
     from worker.predict_current import category_records
 
-    latest = (
-        session.query(ModelRun)
-        .filter(ModelRun.model_key == model, ModelRun.status == "completed")
-        .order_by(ModelRun.id.desc())
-        .first()
-    )
+    latest = _latest_run(session, model)
     if latest is None:
-        return {"model": model, "picks": [], "note": "No completed prediction run yet."}
+        return {"model": model, "picks": [], "event_id": None, "note": "No completed prediction run yet."}
     rows = session.query(PlayerPrediction).filter(PlayerPrediction.model_run_id == latest.id).all()
     records = []
     for row in rows:
@@ -188,14 +189,8 @@ def picks(model: str = Query(default="B"), session: Session = Depends(db_session
     }
 
 
-@app.get("/api/v1/players/{element_id}")
-def player_detail(element_id: int, model: str = "B", session: Session = Depends(db_session)):
-    latest = (
-        session.query(ModelRun)
-        .filter(ModelRun.model_key == model, ModelRun.status == "completed")
-        .order_by(ModelRun.id.desc())
-        .first()
-    )
+def _player_payload(session: Session, element_id: int, model: str = "B") -> dict:
+    latest = _latest_run(session, model)
     if latest is None:
         raise HTTPException(status_code=404, detail="No prediction run")
     row = (
@@ -218,8 +213,85 @@ def player_detail(element_id: int, model: str = "B", session: Session = Depends(
     }
 
 
+@app.get("/api/v1/rankings")
+def rankings(
+    model: str = Query(default="B"),
+    position: str | None = None,
+    limit: int = 50,
+    session: Session = Depends(db_session),
+):
+    return _rankings_payload(session, model=model, position=position, limit=limit)
+
+
+@app.get("/api/v1/picks")
+def picks(model: str = Query(default="B"), session: Session = Depends(db_session)):
+    return _picks_payload(session, model=model)
+
+
+@app.get("/api/v1/players/{element_id}")
+def player_detail(element_id: int, model: str = "B", session: Session = Depends(db_session)):
+    return _player_payload(session, element_id, model=model)
+
+
 @app.post("/api/v1/admin/refresh")
 def admin_refresh(_: None = Depends(require_admin)):
     from worker.jobs import run_daily_refresh
 
     return run_daily_refresh(triggered_by="admin")
+
+
+@app.get("/", response_class=HTMLResponse)
+def dashboard_page(request: Request, session: Session = Depends(db_session)):
+    return templates.TemplateResponse(
+        request,
+        "dashboard.html",
+        {"status": status(session), "picks": _picks_payload(session)},
+    )
+
+
+@app.get("/rankings", response_class=HTMLResponse)
+def rankings_page(
+    request: Request,
+    position: str | None = None,
+    session: Session = Depends(db_session),
+):
+    payload = _rankings_payload(session, position=position, limit=80)
+    return templates.TemplateResponse(
+        request,
+        "rankings.html",
+        {"rows": payload.get("rows") or [], "position": position},
+    )
+
+
+@app.get("/players/{element_id}", response_class=HTMLResponse)
+def player_page(element_id: int, request: Request, session: Session = Depends(db_session)):
+    try:
+        player = _player_payload(session, element_id)
+    except HTTPException:
+        return templates.TemplateResponse(
+            request,
+            "player.html",
+            {
+                "player": {
+                    "element": element_id,
+                    "xpts_gw": 0,
+                    "xpts_3gw": 0,
+                    "xpts_5gw": 0,
+                    "expected_minutes": 0,
+                    "start_probability": 0,
+                },
+                "expl": {"name": f"Player {element_id} not in latest run", "positives": [], "negatives": []},
+                "components": {},
+            },
+            status_code=404,
+        )
+    expl = player.get("explanation") or {}
+    return templates.TemplateResponse(
+        request,
+        "player.html",
+        {
+            "player": player,
+            "expl": expl,
+            "components": player.get("components") or expl.get("components") or {},
+        },
+    )

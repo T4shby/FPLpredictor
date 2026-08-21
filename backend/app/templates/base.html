@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}FPL Predictor{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="site">
+      <div>
+        <a href="/">FPL Predictor</a>
+        <div class="muted">Model B xPts · 2026/27</div>
+      </div>
+      <nav>
+        <a href="/">Dashboard</a>
+        <a href="/rankings">Rankings</a>
+      </nav>
+    </header>
+    {% block body %}{% endblock %}
+  </div>
+</body>
+</html>

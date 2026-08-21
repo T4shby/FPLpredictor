@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Rankings · FPL Predictor{% endblock %}
+{% block body %}
+<main>
+  <h1>Rankings</h1>
+  <p class="muted">Model B · GW xPts · {{ rows|length }} players</p>
+  <div class="filters">
+    <a href="/rankings" class="{% if not position %}active{% endif %}">All</a>
+    {% for pos in ["GKP", "DEF", "MID", "FWD"] %}
+    <a href="/rankings?position={{ pos }}" class="{% if position == pos %}active{% endif %}">{{ pos }}</a>
+    {% endfor %}
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Player</th><th>Team</th><th>Pos</th><th>Opp</th>
+        <th class="num">Price</th><th class="num">Own%</th><th class="num">Mins</th>
+        <th class="num">GW</th><th class="num">3GW</th><th class="num">5GW</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td><a href="/players/{{ row.element }}">{{ row.name or row.element }}</a></td>
+        <td>{{ row.team }}</td>
+        <td>{{ row.position }}</td>
+        <td>{% if row.was_home == true %}(H) {% elif row.was_home == false %}(A) {% endif %}{{ row.opponent or "" }}</td>
+        <td class="num">{% if row.price is not none %}£{{ "%.1f"|format(row.price) }}{% endif %}</td>
+        <td class="num">{% if row.ownership is not none %}{{ "%.1f"|format(row.ownership) }}{% endif %}</td>
+        <td class="num">{% if row.expected_minutes is not none %}{{ "%.0f"|format(row.expected_minutes) }}{% endif %}</td>
+        <td class="num">{{ "%.2f"|format(row.xpts_gw or 0) }}</td>
+        <td class="num">{{ "%.2f"|format(row.xpts_3gw or 0) }}</td>
+        <td class="num">{{ "%.2f"|format(row.xpts_5gw or 0) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</main>
+{% endblock %}

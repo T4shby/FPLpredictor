@@ -1,0 +1,17 @@
+[Unit]
+Description=FPL Predictor API (localhost only, like YetiBets)
+After=network.target
+
+[Service]
+Type=simple
+User=fplpredictor
+Group=fplpredictor
+WorkingDirectory=/opt/fplpredictor
+EnvironmentFile=/opt/fplpredictor/.env
+ExecStart=/opt/fplpredictor/.venv/bin/uvicorn backend.app.main:app --host 127.0.0.1 --port 8001 --proxy-headers
+Restart=on-failure
+RestartSec=5
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target

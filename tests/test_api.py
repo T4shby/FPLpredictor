@@ -29,6 +29,14 @@ def test_admin_refresh_requires_token():
     assert response.status_code == 401
 
 
+def test_html_dashboard_without_data():
+    client = TestClient(app)
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert b"FPL Predictor" in response.content
+
+
 def test_picks_endpoint_without_runs():
     client = TestClient(app)
     response = client.get("/api/v1/picks")

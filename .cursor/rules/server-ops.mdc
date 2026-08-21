@@ -1,0 +1,15 @@
+---
+description: Document every change made on the user's servers
+alwaysApply: true
+---
+
+# Server operations log
+
+Whenever you SSH, run commands, install packages, change systemd/cron/nginx/Plesk, or edit files **on a live server** (Plesk, ubuntu, or any VPS):
+
+1. Append an entry to `docs/SERVER_OPS_LOG.md` in the **same turn** (do not wait for the user to ask).
+2. Record: date (Europe/London), host, who you connected as, commands or actions, result, anything left for the user.
+3. Never leave an undocumented production change. If a command failed, log the failure too.
+4. Do not log secrets (private keys, `.env` values, tokens). Log that a secret was set, not the value.
+
+Local Windows work in `C:\Dev\FPLpredictor` does not need this log. Git commits are not a substitute for the server log.
