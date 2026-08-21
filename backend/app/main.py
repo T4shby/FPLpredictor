@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from backend.app.core.logging import configure_logging
@@ -20,6 +21,12 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="FPL Predictor", version="0.1.0", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def db_session():
@@ -117,6 +124,11 @@ def rankings(
                 "name": expl.get("name"),
                 "team": expl.get("team"),
                 "position": expl.get("position"),
+                "opponent": expl.get("opponent"),
+                "was_home": expl.get("was_home"),
+                "price": None if expl.get("now_cost") is None else round(float(expl["now_cost"]) / 10.0, 1),
+                "ownership": expl.get("selected_by_percent"),
+                "status": expl.get("status"),
                 "event_id": row.event_id,
                 "xpts_gw": row.xpts_gw,
                 "xpts_3gw": row.xpts_3gw,
@@ -130,11 +142,54 @@ def rankings(
         )
         if len(payload) >= limit:
             break
-    return {"model": model, "model_run_id": latest.id, "rows": payload}
+    return {"model": model, "model_run_id": latest.id, "event_id": latest.target_event_id, "rows": payload}
+
+
+@app.get("/api/v1/picks")
+def picks(model: str = Query(default="B"), session: Session = Depends(db_session)):
+    import pandas as pd
+
+    from worker.predict_current import category_records
+
+    latest = (
+        session.query(ModelRun)
+        .filter(ModelRun.model_key == model, ModelRun.status == "completed")
+        .order_by(ModelRun.id.desc())
+        .first()
+    )
+    if latest is None:
+        return {"model": model, "picks": [], "note": "No completed prediction run yet."}
+    rows = session.query(PlayerPrediction).filter(PlayerPrediction.model_run_id == latest.id).all()
+    records = []
+    for row in rows:
+        expl = row.explanation or {}
+        records.append(
+            {
+                "element": row.fpl_element_id,
+                "name": expl.get("name"),
+                "team": expl.get("team"),
+                "position": expl.get("position"),
+                "xpts_gw": row.xpts_gw,
+                "xpts_3gw": row.xpts_3gw or 0,
+                "xpts_5gw": row.xpts_5gw or 0,
+                "expected_minutes": row.expected_minutes or 0,
+                "selected_by_percent": expl.get("selected_by_percent") or 0,
+                "now_cost": expl.get("now_cost") or 0,
+                "status": expl.get("status") or "a",
+                "value_score": expl.get("value_score")
+                or ((row.xpts_3gw or 0) / max((expl.get("now_cost") or 40) / 10.0, 4.0)),
+            }
+        )
+    return {
+        "model": model,
+        "model_run_id": latest.id,
+        "event_id": latest.target_event_id,
+        "picks": category_records(pd.DataFrame(records)),
+    }
 
 
 @app.get("/api/v1/players/{element_id}")
-def player_detail(element_id: int, model: str = "D", session: Session = Depends(db_session)):
+def player_detail(element_id: int, model: str = "B", session: Session = Depends(db_session)):
     latest = (
         session.query(ModelRun)
         .filter(ModelRun.model_key == model, ModelRun.status == "completed")

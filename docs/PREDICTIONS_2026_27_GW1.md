@@ -1,7 +1,7 @@
 # 2026-27 Gameweek 1 predictions
 
 Deadline: 2026-08-21T17:30:00Z
-Generated: 2026-08-21T14:18:37.119954+00:00
+Generated: 2026-08-21T14:23:34.971475+00:00
 Primary xPts and captain: **Model B** (best 2025/26 MAE). Model D still over-weights clean sheets, so it is shown for ranking research only.
 3GW/5GW totals are summed fixture-level predictions, including blanks and doubles.
 End-of-season rest is not treated as an injury for Gameweeks 1–2.
@@ -10,16 +10,22 @@ End-of-season rest is not treated as an injury for Gameweeks 1–2.
 
 | Category | Player | Team | Pos | GW xPts | 3GW | 5GW | Own% | Price |
 | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| Best overall (B) | Watkins | Aston Villa | FWD | 5.91 | 17.36 | 29.60 | 10.5 | £8.0 |
-| Best captain (B) | Watkins | Aston Villa | FWD | 5.91 | 17.36 | 29.60 | 10.5 | £8.0 |
-| Best vice-captain (B) | Anderson | Man City | MID | 5.38 | 16.01 | 26.57 | 8.2 | £6.5 |
+| Best overall | Watkins | Aston Villa | FWD | 5.91 | 17.36 | 29.60 | 10.5 | £8.0 |
+| Best captain | Watkins | Aston Villa | FWD | 5.91 | 17.36 | 29.60 | 10.5 | £8.0 |
+| Best vice-captain | Anderson | Man City | MID | 5.38 | 16.01 | 26.57 | 8.2 | £6.5 |
 | Best value 3GW | Shaw | Man Utd | DEF | 3.88 | 12.03 | 19.64 | 21.5 | £4.5 |
 | Best differential <10% | Anderson | Man City | MID | 5.38 | 16.01 | 26.57 | 8.2 | £6.5 |
+| Best ultra differential <5% | Sels | Nott'm Forest | GKP | 4.14 | 11.64 | 19.35 | 1.6 | £5.0 |
 | Best GK | Donnarumma | Man City | GKP | 4.51 | 13.53 | 22.47 | 8.3 | £5.5 |
 | Best defender | Gabriel | Arsenal | DEF | 4.72 | 13.57 | 22.39 | 29.7 | £8.0 |
 | Best midfielder | Anderson | Man City | MID | 5.38 | 16.01 | 26.57 | 8.2 | £6.5 |
 | Best forward | Watkins | Aston Villa | FWD | 5.91 | 17.36 | 29.60 | 10.5 | £8.0 |
-| Best one-week (GW xPts) | Watkins | Aston Villa | FWD | 5.91 | 17.36 | 29.60 | 10.5 | £8.0 |
+| Best budget GK | Kelleher | Brentford | GKP | 4.39 | 12.92 | 20.92 | 5.8 | £5.0 |
+| Best budget defender | Shaw | Man Utd | DEF | 3.88 | 12.03 | 19.64 | 21.5 | £4.5 |
+| Best budget midfielder | J.Ramsey | Newcastle | MID | 3.14 | 9.56 | 15.98 | 0.4 | £5.0 |
+| Best budget forward | Emegha | Chelsea | FWD | 1.31 | 3.87 | 6.57 | 0.1 | £5.0 |
+| Best one-week punt | Watkins | Aston Villa | FWD | 5.91 | 17.36 | 29.60 | 10.5 | £8.0 |
+| Best 3GW transfer | Watkins | Aston Villa | FWD | 5.91 | 17.36 | 29.60 | 10.5 | £8.0 |
 | Best 5GW transfer | Watkins | Aston Villa | FWD | 5.91 | 17.36 | 29.60 | 10.5 | £8.0 |
 
 ## Model B top 20 this week

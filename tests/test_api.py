@@ -27,3 +27,10 @@ def test_admin_refresh_requires_token():
     client = TestClient(app)
     response = client.post("/api/v1/admin/refresh")
     assert response.status_code == 401
+
+
+def test_picks_endpoint_without_runs():
+    client = TestClient(app)
+    response = client.get("/api/v1/picks")
+    assert response.status_code == 200
+    assert "picks" in response.json()

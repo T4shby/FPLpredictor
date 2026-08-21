@@ -36,6 +36,7 @@ def _upcoming_for_event(elements: list[dict], fixtures: list[dict], event_id: in
                     "position": POSITION[el["element_type"]],
                     "team": team_name[el["team"]],
                     "opponent_team": away if was_home else home,
+                    "opponent_name": team_name[away if was_home else home],
                     "was_home": was_home,
                     "fixture": fx["fpl_fixture_id"],
                     "GW": event_id,
@@ -131,10 +132,26 @@ def compute_current_predictions(horizon: int = 5) -> dict:
             features["start_probability"] = features["start_probability"] * scale
             preds = predict_frame(features, spec, rules)
             preds["horizon_gw"] = gw
-            meta = upcoming.drop_duplicates("element")[
-                ["element", "now_cost", "selected_by_percent", "status", "news", "chance_of_playing_next_round"]
+            meta_cols = [
+                c
+                for c in [
+                    "element",
+                    "now_cost",
+                    "selected_by_percent",
+                    "status",
+                    "news",
+                    "chance_of_playing_next_round",
+                    "opponent_name",
+                    "was_home",
+                ]
+                if c in features.columns or c in upcoming.columns
             ]
-            preds = preds.merge(meta, on="element", how="left")
+            meta = upcoming.drop_duplicates("element")
+            extra = features.drop_duplicates("element")
+            for col in ("opponent_name", "was_home"):
+                if col in extra.columns and col not in meta.columns:
+                    meta = meta.merge(extra[["element", col]], on="element", how="left")
+            preds = preds.merge(meta[[c for c in meta_cols if c in meta.columns]], on="element", how="left")
             gw_parts.append(preds)
         if not gw_parts:
             continue
@@ -190,6 +207,12 @@ def persist_predictions(session: Session, result: dict) -> list[dict]:
                 "name": row.get("name"),
                 "team": row.get("team"),
                 "position": row.get("position"),
+                "now_cost": _float_or_none(row.get("now_cost")),
+                "selected_by_percent": _float_or_none(row.get("selected_by_percent")),
+                "status": row.get("status"),
+                "opponent": row.get("opponent_name"),
+                "was_home": bool(row.get("was_home")) if pd.notna(row.get("was_home")) else None,
+                "value_score": _float_or_none(row.get("value_score")),
             }
             session.add(
                 PlayerPrediction(
@@ -264,13 +287,12 @@ def write_prediction_report(result: dict, path: Path | None = None) -> Path:
     return docs_path
 
 
-def _category_lines(primary: pd.DataFrame, captain_frame: pd.DataFrame) -> list[str]:
+def category_records(primary: pd.DataFrame) -> list[dict]:
     settings = get_settings()
     available = primary[
         primary["status"].fillna("a").isin(["a", "d"])
         & (primary["expected_minutes"].fillna(0) >= 30)
     ].copy()
-    cats = []
 
     def pick(frame, mask=None, sort="xpts_gw"):
         subset = frame if mask is None else frame[mask]
@@ -278,30 +300,66 @@ def _category_lines(primary: pd.DataFrame, captain_frame: pd.DataFrame) -> list[
             return None
         return subset.sort_values(sort, ascending=False).iloc[0]
 
-    best = pick(available)
     cap_pool = available[available["expected_minutes"].fillna(0) >= 45]
-    cap = pick(cap_pool)
-    vc = cap_pool.sort_values("xpts_gw", ascending=False) if cap_pool is not None and not cap_pool.empty else cap_pool
-    vc_row = vc.iloc[1] if vc is not None and len(vc) > 1 else cap
-    cats.append(("Best overall (B)", best))
-    cats.append(("Best captain (B)", cap))
-    cats.append(("Best vice-captain (B)", vc_row))
-    cats.append(("Best value 3GW", pick(available, sort="value_score")))
-    diffs = available[(available["selected_by_percent"] < settings.differential_ownership_max) & (available["xpts_gw"] >= 3.5)]
-    cats.append(("Best differential <10%", pick(diffs) if not diffs.empty else None))
-    for pos, label in [("GKP", "Best GK"), ("DEF", "Best defender"), ("MID", "Best midfielder"), ("FWD", "Best forward")]:
-        cats.append((label, pick(available, available["position"] == pos)))
-    punt = pick(available, sort="xpts_gw")
-    transfer = pick(available, sort="xpts_5gw")
-    cats.append(("Best one-week (GW xPts)", punt))
-    cats.append(("Best 5GW transfer", transfer))
-    lines = ["| Category | Player | Team | Pos | GW xPts | 3GW | 5GW | Own% | Price |", "| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: |"]
+    vc = cap_pool.sort_values("xpts_gw", ascending=False)
+    diffs = available[
+        (available["selected_by_percent"] < settings.differential_ownership_max) & (available["xpts_gw"] >= 3.5)
+    ]
+    ultra = available[
+        (available["selected_by_percent"] < settings.ultra_differential_ownership_max) & (available["xpts_gw"] >= 3.5)
+    ]
+    budget = available[available["now_cost"].fillna(999) <= 50]
+    cats = [
+        ("Best overall", pick(available)),
+        ("Best captain", pick(cap_pool)),
+        ("Best vice-captain", vc.iloc[1] if len(vc) > 1 else pick(cap_pool)),
+        ("Best value 3GW", pick(available, sort="value_score")),
+        ("Best differential <10%", pick(diffs) if not diffs.empty else None),
+        ("Best ultra differential <5%", pick(ultra) if not ultra.empty else None),
+        ("Best GK", pick(available, available["position"] == "GKP")),
+        ("Best defender", pick(available, available["position"] == "DEF")),
+        ("Best midfielder", pick(available, available["position"] == "MID")),
+        ("Best forward", pick(available, available["position"] == "FWD")),
+        ("Best budget GK", pick(budget, budget["position"] == "GKP")),
+        ("Best budget defender", pick(budget, budget["position"] == "DEF")),
+        ("Best budget midfielder", pick(budget, budget["position"] == "MID")),
+        ("Best budget forward", pick(budget, budget["position"] == "FWD")),
+        ("Best one-week punt", pick(available, sort="xpts_gw")),
+        ("Best 3GW transfer", pick(available, sort="xpts_3gw")),
+        ("Best 5GW transfer", pick(available, sort="xpts_5gw")),
+    ]
+    out = []
     for label, row in cats:
         if row is None:
-            lines.append(f"| {label} | n/a | | | | | | | |")
+            out.append({"category": label, "player": None})
+            continue
+        out.append(
+            {
+                "category": label,
+                "element": int(row["element"]),
+                "name": row["name"],
+                "team": row["team"],
+                "position": row["position"],
+                "xpts_gw": round(float(row["xpts_gw"]), 2),
+                "xpts_3gw": round(float(row.get("xpts_3gw") or 0), 2),
+                "xpts_5gw": round(float(row.get("xpts_5gw") or 0), 2),
+                "ownership": round(float(row.get("selected_by_percent") or 0), 1),
+                "price": round(float(row.get("now_cost") or 0) / 10.0, 1),
+                "expected_minutes": round(float(row.get("expected_minutes") or 0), 1),
+            }
+        )
+    return out
+
+
+def _category_lines(primary: pd.DataFrame, captain_frame: pd.DataFrame) -> list[str]:
+    del captain_frame
+    lines = ["| Category | Player | Team | Pos | GW xPts | 3GW | 5GW | Own% | Price |", "| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: |"]
+    for row in category_records(primary):
+        if not row.get("name"):
+            lines.append(f"| {row['category']} | n/a | | | | | | | |")
             continue
         lines.append(
-            f"| {label} | {row['name']} | {row['team']} | {row['position']} | {row['xpts_gw']:.2f} | {row.get('xpts_3gw', 0):.2f} | {row.get('xpts_5gw', 0):.2f} | {row.get('selected_by_percent', 0):.1f} | £{row.get('now_cost', 0)/10:.1f} |"
+            f"| {row['category']} | {row['name']} | {row['team']} | {row['position']} | {row['xpts_gw']:.2f} | {row['xpts_3gw']:.2f} | {row['xpts_5gw']:.2f} | {row['ownership']:.1f} | £{row['price']:.1f} |"
         )
     return lines
 

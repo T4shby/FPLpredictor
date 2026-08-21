@@ -1,3 +1,17 @@
-Frontend is phase 5. Do not start visual design until the 2025/26 backtest report exists and a model has been selected.
+# Frontend
 
-The FastAPI service currently exposes JSON for status, rankings, and player detail.
+Next.js dashboard for Model B xPts. It reads FastAPI (`/api/v1/status`, `/picks`, `/rankings`, `/players/{id}`).
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Run the API first:
+
+```bash
+uvicorn backend.app.main:app --reload --port 8000
+```
+
+Then open http://localhost:3000
