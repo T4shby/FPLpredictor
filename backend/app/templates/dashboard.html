@@ -6,7 +6,11 @@
   <p class="muted">
     Season {{ status.season }} · deadline {{ status.next_deadline or "unknown" }} · data {{ status.data_status }} · refresh {{ status.daily_refresh }}
   </p>
-  <p>All four models are stored. <strong>B</strong> had the best 2025/26 MAE; <strong>D</strong> ranked captains better but over-weights clean sheets. Use the tabs to switch.</p>
+  <p>
+    This season the four models compete live: each names a player for the Gameweek, then that player's
+    <strong>actual FPL points</strong> go on the <a href="/league">league table</a>. Last season's walk-forward
+    (2025/26) is lab evidence only — it is not a backtest of 2026/27.
+  </p>
   <h2>Best overall by model</h2>
   <div class="grid">
     {% for head in model_heads %}

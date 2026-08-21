@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     daily_refresh_hour: int = 9
     daily_refresh_minute: int = 0
 
-    model_version: str = "0.1.0"
+    model_version: str = "0.1.1"
     feature_version: str = "0.1.0"
     current_season: str = "2026-27"
     historical_season: str = "2025-26"

@@ -20,7 +20,7 @@ This is not a flashy dashboard. The first deliverable is a walk-forward backtest
 **TODO / NOT YET VERIFIED**
 
 - Transfer / squad ILP optimiser
-- Recalibrating Model D so ranking quality does not inflate MAE
+- Recalibrating Model D so ranking quality does not inflate MAE — **v0.1.1 formula is in code; 2025/26 walk-forward not re-run yet**
 - Production Docker on the Ubuntu VPS
 
 ## Quick start (local, no Docker)

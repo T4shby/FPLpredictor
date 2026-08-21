@@ -25,7 +25,7 @@ MODEL_LABELS = {
     "A": "A · Form",
     "B": "B · Form + fixture",
     "C": "C · Form + fixture + xG",
-    "D": "D · Full (uncalibrated)",
+    "D": "D · Full",
 }
 
 
@@ -252,6 +252,13 @@ def picks(model: str = Query(default="B"), session: Session = Depends(db_session
     return _picks_payload(session, model=_normalise_model(model))
 
 
+@app.get("/api/v1/league")
+def league(session: Session = Depends(db_session)):
+    from worker.model_league import league_table
+
+    return league_table(session)
+
+
 @app.get("/api/v1/players/{element_id}")
 def player_detail(element_id: int, model: str = "B", session: Session = Depends(db_session)):
     return _player_payload(session, element_id, model=_normalise_model(model))
@@ -276,6 +283,18 @@ def dashboard_page(request: Request, model: str = "B", session: Session = Depend
         request,
         "dashboard.html",
         _page_context(status=status(session), picks=_picks_payload(session, model=model), model_heads=heads, model=model),
+    )
+
+
+@app.get("/league", response_class=HTMLResponse)
+def league_page(request: Request, model: str = "B", session: Session = Depends(db_session)):
+    from worker.model_league import league_table
+
+    model = _normalise_model(model)
+    return templates.TemplateResponse(
+        request,
+        "league.html",
+        _page_context(league=league_table(session), model=model),
     )
 
 

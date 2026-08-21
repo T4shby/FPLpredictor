@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 from backend.app.core.settings import get_settings
 from backend.app.db.models import Gameweek, get_session_factory, init_db
 from data.ingestion.live import import_live_snapshot, record_job
+from worker.model_league import update_actual_points
 from worker.predict_current import generate_current_predictions
 
 logger = logging.getLogger(__name__)
@@ -35,9 +36,10 @@ def run_daily_refresh(triggered_by: str = "schedule", max_attempts: int | None =
                 raise RuntimeError(str(result.get("errors")))
             logger.info("data_import_completed players=%s", result.get("players"))
             pred = generate_current_predictions(session)
+            scored = update_actual_points(session)
             record_job(session, "daily_refresh", "success", message=f"attempt {attempt}", attempt=attempt, details=result)
-            logger.info("prediction_run_completed models=%s", pred.get("models"))
-            return {"ok": True, "import": result, "predictions": pred, "attempt": attempt}
+            logger.info("prediction_run_completed models=%s league=%s", pred.get("models"), scored)
+            return {"ok": True, "import": result, "predictions": pred, "league": scored, "attempt": attempt}
         except Exception as exc:
             last_error = exc
             logger.exception("job_failed attempt=%s error=%s", attempt, exc)

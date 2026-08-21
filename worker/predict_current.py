@@ -15,6 +15,7 @@ from features.player_form import add_player_rolling_features, aggregate_player_g
 from features.team_strength import add_team_rolling_ratings, unique_team_matches
 from modelling.predict import ALL_MODELS, ModelSpec, predict_frame
 from modelling.scoring import load_scoring_rules, load_season_config
+from worker.model_league import freeze_model_picks, update_actual_points
 
 POSITION = {1: "GKP", 2: "DEF", 3: "MID", 4: "FWD"}
 SEASON_ORDER = {"2024-25": 0, "2025-26": 1, "2026-27": 2}
@@ -240,8 +241,16 @@ def persist_predictions(session: Session, result: dict) -> list[dict]:
 def generate_current_predictions(session: Session) -> dict:
     result = compute_current_predictions()
     published = persist_predictions(session, result)
+    frozen = freeze_model_picks(session, result)
+    scored = update_actual_points(session, event_id=result["target_gw"])
     report = write_prediction_report(result)
-    return {"models": published, "target_gw": result["target_gw"], "report": str(report)}
+    return {
+        "models": published,
+        "target_gw": result["target_gw"],
+        "report": str(report),
+        "league_frozen": frozen,
+        "league_scored": scored,
+    }
 
 
 def write_prediction_report(result: dict, path: Path | None = None) -> Path:
@@ -272,7 +281,7 @@ def write_prediction_report(result: dict, path: Path | None = None) -> Path:
         lines.extend(
             [
                 "",
-                "## Model D ranking (uncalibrated, clean-sheet heavy)",
+                "## Model D ranking",
                 "",
                 _table(caps, cols=("name", "team", "position", "xpts_gw", "xpts_3gw", "start_probability")),
             ]

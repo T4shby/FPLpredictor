@@ -51,3 +51,20 @@ def test_picks_endpoint_without_runs():
     response = client.get("/api/v1/picks")
     assert response.status_code == 200
     assert "picks" in response.json()
+
+
+def test_html_league_without_data():
+    client = TestClient(app)
+    response = client.get("/league")
+    assert response.status_code == 200
+    assert b"Model league" in response.content
+    assert b"Season pts" in response.content
+
+
+def test_league_api_without_data():
+    client = TestClient(app)
+    response = client.get("/api/v1/league")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["season"] == "2026-27"
+    assert [row["model"] for row in body["standings"]] == ["A", "B", "C", "D"]

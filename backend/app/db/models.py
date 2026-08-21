@@ -230,6 +230,27 @@ class PlayerPrediction(Base):
     frozen: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
+class ModelGwPick(Base):
+    """One frozen player per model per Gameweek. Actual points may update live; the player does not."""
+
+    __tablename__ = "model_gw_picks"
+    __table_args__ = (UniqueConstraint("season", "event_id", "model_key", name="uq_model_gw_pick"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    season: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    event_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    model_key: Mapped[str] = mapped_column(String(16), nullable=False)
+    fpl_element_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    name: Mapped[str] = mapped_column(String(64), nullable=False)
+    team: Mapped[str] = mapped_column(String(64), default="")
+    position: Mapped[str] = mapped_column(String(8), default="")
+    xpts_gw: Mapped[float] = mapped_column(Float, default=0)
+    actual_points: Mapped[float | None] = mapped_column(Float, nullable=True)
+    locked: Mapped[bool] = mapped_column(Boolean, default=False)
+    frozen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    scored_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class BacktestRun(Base):
     __tablename__ = "backtest_runs"
 

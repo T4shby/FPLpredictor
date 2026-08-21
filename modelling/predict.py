@@ -17,8 +17,17 @@ from modelling.scoring import (
 
 
 POSITION_PP90_PRIOR = {"GKP": 3.8, "DEF": 3.4, "MID": 4.0, "FWD": 4.6}
-MODEL_VERSION = "0.1.0"
+MODEL_VERSION = "0.1.1"
 FEATURE_VERSION = "0.1.0"
+
+# Model D only. Official CS is still 4 FPL points in scoring_rules.yaml.
+# Independent Poisson exp(-opp_xg) with opp_xg floored at 0.15 implies ~86% CS,
+# which PL teams do not hit. Shrink toward the league CS rate and cap.
+LEAGUE_CS_RATE = 0.28
+CS_POISSON_SHRINK = 0.55
+CS_PROB_CAP = 0.42
+FULL_FORM_BLEND = 0.40
+DEFCON_SHRINK = 0.75
 
 
 @dataclass(frozen=True)
@@ -68,6 +77,23 @@ def weighted_pp90(row: pd.Series) -> float:
     observed = float(np.average(parts, weights=weights))
     shrink = minutes_sample / (minutes_sample + 270.0)
     return (1 - shrink) * prior + shrink * observed
+
+
+def calibrate_clean_sheet_prob(p_cs: float) -> float:
+    """Shrink a Poisson CS probability toward the observed PL rate. Does not change FPL CS points."""
+    raw = float(np.clip(p_cs, 0.0, 0.95))
+    shrunk = LEAGUE_CS_RATE + CS_POISSON_SHRINK * (raw - LEAGUE_CS_RATE)
+    return float(np.clip(shrunk, 0.05, CS_PROB_CAP))
+
+
+def _fixture_adjusted_form(row: pd.Series, position: str, form_xpts: float) -> float:
+    attack_adj = 0.75 + 0.5 * (_num(row, "attack_fixture_rating", 50) / 100.0)
+    defence_adj = 0.85 + 0.3 * (_num(row, "defence_fixture_rating", 50) / 100.0)
+    if position in {"GKP", "DEF"}:
+        return form_xpts * (0.55 * attack_adj + 0.45 * defence_adj)
+    if position == "MID":
+        return form_xpts * (0.75 * attack_adj + 0.25 * defence_adj)
+    return form_xpts * (0.9 * attack_adj + 0.1 * defence_adj)
 
 
 def player_share(row: pd.Series, player_col: str, team_col: str, default: float) -> float:
@@ -147,7 +173,8 @@ def predict_row(row: pd.Series, spec: ModelSpec, rules: dict | None = None) -> d
         return _pack(row, spec, xpts, components)
 
     team_xg = _num(row, "team_xg_h2h" if spec.include_h2h else "team_xg", _num(row, "team_xg", 1.35))
-    p_cs = _num(row, "p_clean_sheet", 0.25)
+    p_cs_raw = _num(row, "p_clean_sheet", 0.25)
+    p_cs = calibrate_clean_sheet_prob(p_cs_raw) if spec.use_full else p_cs_raw
     opp_xg = _num(row, "opp_xg", 1.35)
 
     if spec.use_xg:
@@ -182,28 +209,20 @@ def predict_row(row: pd.Series, spec: ModelSpec, rules: dict | None = None) -> d
     clean_sheet = p_cs * p_60 * position_cs_points(rules, position)
     saves = save_points(rules, e_saves) if position == "GKP" else 0.0
     gc = gc_deduction(rules, position, opp_xg, p_60)
-    defcon = defcon_rate * p_60 if spec.use_full else 0.0
     if not spec.use_full:
         defcon = 0.0
     else:
-        # If the source stored 0/2 points, defcon_rate is already expected points.
-        defcon = min(float(position_defcon_points(rules, position)), defcon_rate) * p_60
+        # Historical defensive_contribution is already FPL points (0 or 2). Shrink because last-5 overfits.
+        defcon = min(float(position_defcon_points(rules, position)), defcon_rate) * p_60 * DEFCON_SHRINK
     bonus = bonus_rate * p_60
     cards = yellow_rate * p_start * float(rules["yellow_cards"])
+    form_adj = _fixture_adjusted_form(row, position, form_xpts)
+    component_xpts = appearance + goals + assists + clean_sheet + saves + gc + defcon + bonus + cards
 
     if spec.use_full:
-        xpts = appearance + goals + assists + clean_sheet + saves + gc + defcon + bonus + cards
+        xpts = FULL_FORM_BLEND * form_adj + (1.0 - FULL_FORM_BLEND) * component_xpts
     else:
-        # Form + fixture / xG: scale form by fixture attacking/defensive opportunity.
-        attack_adj = 0.75 + 0.5 * (_num(row, "attack_fixture_rating", 50) / 100.0)
-        defence_adj = 0.85 + 0.3 * (_num(row, "defence_fixture_rating", 50) / 100.0)
-        if position in {"GKP", "DEF"}:
-            xpts = form_xpts * (0.55 * attack_adj + 0.45 * defence_adj)
-        elif position == "MID":
-            xpts = form_xpts * (0.75 * attack_adj + 0.25 * defence_adj)
-        else:
-            xpts = form_xpts * (0.9 * attack_adj + 0.1 * defence_adj)
-        xpts = 0.65 * xpts + 0.35 * (appearance + goals + assists + clean_sheet + saves + gc)
+        xpts = 0.65 * form_adj + 0.35 * (appearance + goals + assists + clean_sheet + saves + gc)
 
     components = {
         "appearance": round(appearance, 3),

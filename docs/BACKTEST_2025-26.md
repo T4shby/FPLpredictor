@@ -5,6 +5,10 @@ Model version: 0.1.0
 Feature version: 0.1.0  
 n = 11,361 player-gameweeks with at least 1 minute.
 
+This is a walk-forward check on the **completed 2025/26 season**. It is not a backtest of 2026/27. Live 2026/27 judgement is the model league: each of A–D locks a player at the Gameweek deadline and accrues that player's actual FPL points.
+
+**NOT YET RE-RUN:** Model D CS calibration in v0.1.1 (shrink Poisson CS, DC shrink, 40% form blend) is not reflected in the table below. Those rows are v0.1.0.
+
 Protocol: for Gameweek N, features use only rows with `timeline < N`. Players are aligned across 2024/25 → 2025/26 using FPL `code`, not season-specific element IDs. Top-10 and captain scores are **per Gameweek, then averaged**.
 
 | Model | MAE | RMSE | Corr | Spearman | Top 10 avg actual | Captain avg actual |

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Model league · {{ league.season }}{% endblock %}
+{% block body %}
+<main>
+  <h1>Model league</h1>
+  <p class="muted">{{ league.season }} · each model locks one player at the Gameweek deadline · actual FPL points count</p>
+  <p>
+    A, B, C, and D are playing the same season against each other. We cannot backtest 2026/27 in advance.
+    Points appear and rise as fixtures are played. The player is locked at deadline and is not rewritten.
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Model</th>
+        <th class="num">Season pts</th>
+        <th>This GW player</th>
+        <th class="num">Predicted</th>
+        <th class="num">Actual</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in league.standings %}
+      {% set week = row.weeks[-1] if row.weeks else none %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td><a href="/?model={{ row.model }}">{{ row.model }} · {{ row.name }}</a></td>
+        <td class="num">{{ "%.1f"|format(row.total) }}</td>
+        <td>
+          {% if week %}
+          <a href="/players/{{ week.element }}?model={{ row.model }}">{{ week.name }}</a>
+          <span class="muted">{{ week.team }} · {{ week.position }} · GW{{ week.event_id }}</span>
+          {% else %}
+          <span class="muted">No pick yet</span>
+          {% endif %}
+        </td>
+        <td class="num">{% if week %}{{ "%.2f"|format(week.xpts_gw or 0) }}{% endif %}</td>
+        <td class="num">{% if week and week.actual_points is not none %}{{ "%.1f"|format(week.actual_points) }}{% else %}—{% endif %}</td>
+        <td class="muted">{% if week and week.locked %}locked{% elif week %}provisional{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <h2>By Gameweek</h2>
+  {% for row in league.standings %}
+  <h3>{{ row.model }} · {{ row.name }} · {{ "%.1f"|format(row.total) }} pts</h3>
+  {% if row.weeks %}
+  <table>
+    <thead>
+      <tr>
+        <th>GW</th><th>Player</th><th>Team</th>
+        <th class="num">xPts</th><th class="num">Actual</th><th>Lock</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for week in row.weeks %}
+      <tr>
+        <td>{{ week.event_id }}</td>
+        <td><a href="/players/{{ week.element }}?model={{ row.model }}">{{ week.name }}</a></td>
+        <td>{{ week.team }}</td>
+        <td class="num">{{ "%.2f"|format(week.xpts_gw or 0) }}</td>
+        <td class="num">{% if week.actual_points is not none %}{{ "%.1f"|format(week.actual_points) }}{% else %}—{% endif %}</td>
+        <td class="muted">{% if week.locked %}locked{% else %}provisional{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">Waiting for the first published run.</p>
+  {% endif %}
+  {% endfor %}
+</main>
+{% endblock %}
