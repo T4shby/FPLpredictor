@@ -1,0 +1,70 @@
+# Official FPL scoring captured from game_config.scoring on 2026-08-21.
+# Source: https://fantasy.premierleague.com/api/bootstrap-static/ -> game_config.scoring
+# Do not scatter these constants through model code. Load via modelling.scoring.
+season: "2026-27"
+source: "fpl_game_config.scoring"
+captured_at: "2026-08-21"
+notes:
+  - "short_play is awarded for appearing (<60 minutes)."
+  - "long_play is the total appearance score for reaching 60 minutes, not an extra +2 on top of short_play."
+  - "saves: 1 FPL point per 3 saves (FPL save-point unit)."
+  - "goals_conceded: -1 for every 2 goals conceded by GKP/DEF."
+  - "defensive_contribution: +2 if the match threshold is reached, else 0. GKP is 0."
+  - "DEF threshold is 10 CBIT. MID/FWD threshold is 12 CBIRT. Thresholds are not in game_config; they are documented FPL rules."
+
+appearance:
+  short_play: 1
+  long_play: 2
+  long_play_minutes: 60
+
+goals_scored:
+  GKP: 10
+  DEF: 6
+  MID: 5
+  FWD: 4
+
+assists: 3
+
+clean_sheets:
+  GKP: 4
+  DEF: 4
+  MID: 1
+  FWD: 0
+
+goals_conceded:
+  GKP: -1
+  DEF: -1
+  MID: 0
+  FWD: 0
+  goals_per_deduction: 2
+
+saves:
+  points_per_unit: 1
+  saves_per_unit: 3
+
+penalties_saved: 5
+penalties_missed: -2
+yellow_cards: -1
+red_cards: -3
+own_goals: -2
+
+defensive_contribution:
+  GKP: 0
+  DEF: 2
+  MID: 2
+  FWD: 2
+  defender_cbit_threshold: 10
+  mid_fwd_cbirt_threshold: 12
+
+bonus:
+  points_per_bonus: 1
+
+squad:
+  size: 15
+  team_limit: 3
+  budget_tenths: 1000
+  positions:
+    GKP: {squad: 2, min_play: 1, max_play: 1}
+    DEF: {squad: 5, min_play: 3, max_play: 5}
+    MID: {squad: 5, min_play: 2, max_play: 5}
+    FWD: {squad: 3, min_play: 1, max_play: 3}

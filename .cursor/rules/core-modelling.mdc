@@ -1,0 +1,18 @@
+---
+description: Core FPL modelling and data rules for every agent session
+alwaysApply: true
+---
+
+# FPL Predictor — Core Rules
+
+- Predict **player FPL points**, not match winners.
+- Never invent unavailable fields. Classify features as DIRECTLY AVAILABLE, DERIVED, EXTERNAL SOURCE REQUIRED, or NOT CURRENTLY AVAILABLE.
+- Backtests must be leakage-safe: Gameweek N features may use only information from Gameweeks `< N` (plus fixtures known before the deadline).
+- Never rewrite frozen historical predictions.
+- Keep raw snapshots. Do not overwrite historical snapshots.
+- Load FPL scoring from `config/scoring_rules.yaml`, never hard-code scoring constants in models.
+- Never hard-code player IDs or team IDs. Map via names/codes stored in the database.
+- Handle 0/1/2+ fixtures per player per Gameweek (blanks and doubles).
+- Prefer explainable statistical models until a more complex model wins a walk-forward backtest.
+- Daily refresh is 09:00 Europe/London (GMT/BST aware). Design for one Ubuntu VPS with 16 GB RAM.
+- Do not claim implemented/tested/working unless verified. Mark incomplete work as TODO / BLOCKED / NOT YET VERIFIED.

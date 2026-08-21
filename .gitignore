@@ -1,0 +1,48 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Environment and secrets
+.env
+.env.local
+*.pem
+
+# Data caches and runtime artifacts
+data/cache/
+data/snapshots/
+backups/
+reports/generated/
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# Alembic local
+alembic/versions/__pycache__/

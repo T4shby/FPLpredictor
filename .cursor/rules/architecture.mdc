@@ -1,0 +1,25 @@
+---
+description: Repository layout and layering for the FPL engine
+alwaysApply: true
+---
+
+# Architecture
+
+Keep ingestion, modelling, and presentation separate:
+
+```
+FPL API / historical files
+  -> data/ (adapter, validation, snapshots)
+  -> normalised DB or DataFrames
+  -> features/
+  -> modelling/
+  -> backtest/ or worker publish
+  -> backend API
+  -> frontend (phase 5+)
+```
+
+- `data/` must isolate unofficial FPL JSON field names behind an adapter.
+- Predictions are precomputed by the worker and stored; HTTP handlers only read.
+- PostgreSQL is the production store. SQLite is allowed for local/dev tests.
+- Do not add Redis, Celery, Kubernetes, or GPUs unless a measured need exists.
+- Integer/mixed-integer squad optimisation lives in `optimisation/` and is not required for the first backtest.

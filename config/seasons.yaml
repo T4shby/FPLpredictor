@@ -1,0 +1,31 @@
+# Club identities are stored by name/short_name, never by assumed stable FPL IDs.
+# FPL element and team IDs reset or reshuffle between seasons.
+seasons:
+  "2024-25":
+    label: "2024/25"
+    promoted: ["Leicester", "Ipswich", "Southampton"]
+  "2025-26":
+    label: "2025/26"
+    promoted: ["Burnley", "Leeds", "Sunderland"]
+  "2026-27":
+    label: "2026/27"
+    promoted: ["Coventry City", "Hull City", "Ipswich Town"]
+
+ownership:
+  differential_max_percent: 10.0
+  ultra_differential_max_percent: 5.0
+
+value:
+  budget_defender_max: 45
+  budget_midfielder_max: 55
+  budget_forward_max: 65
+  budget_goalkeeper_max: 45
+
+captain:
+  min_expected_minutes: 45
+  ceiling_weight: 0.25
+
+h2h:
+  enabled: true
+  max_meetings: 6
+  prior_strength: 8

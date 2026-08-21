@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fpl-predictor"
+version = "0.1.0"
+description = "Leakage-safe Fantasy Premier League expected-points engine"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.141",
+  "uvicorn[standard]>=0.34",
+  "sqlalchemy>=2.0",
+  "alembic>=1.13",
+  "pydantic>=2.13",
+  "pydantic-settings>=2.0",
+  "python-dotenv>=1.0",
+  "httpx>=0.28",
+  "pandas>=2.2",
+  "numpy>=2.0",
+  "scikit-learn>=1.5",
+  "scipy>=1.13",
+  "statsmodels>=0.14",
+  "apscheduler>=3.10",
+  "tzdata>=2024.1",
+  "pyyaml>=6.0",
+  "structlog>=24.4",
+  "orjson>=3.10",
+  "psycopg2-binary>=2.9",
+  "greenlet>=3.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.24"]
+
+[project.scripts]
+fpl-worker = "worker.main:main"
+fpl-backtest = "scripts.run_backtest:main"
+fpl-import-historical = "scripts.import_historical:main"
+fpl-predict-current = "scripts.predict_current:main"
+
+[tool.setuptools.packages.find]
+include = [
+  "backend*",
+  "data*",
+  "features*",
+  "modelling*",
+  "backtest*",
+  "worker*",
+  "optimisation*",
+  "scripts*",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
