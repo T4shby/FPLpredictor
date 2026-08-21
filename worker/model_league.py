@@ -88,6 +88,12 @@ def freeze_model_picks(session: Session, result: dict) -> list[dict]:
             captain = next((p for p in existing.players if p.get("element") == existing.captain_element), {})
             frozen.append({"model": spec.key, "status": "locked", "name": captain.get("name"), "formation": existing.formation})
             continue
+        if existing is not None and lock:
+            existing.locked = True
+            existing.frozen_at = now
+            captain = next((p for p in existing.players if p.get("element") == existing.captain_element), {})
+            frozen.append({"model": spec.key, "status": "locked", "name": captain.get("name"), "formation": existing.formation})
+            continue
         built = _build_squad(session, result, spec.key, frame)
         payload = dict(
             formation=built["formation"],

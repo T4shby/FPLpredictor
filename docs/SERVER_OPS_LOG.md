@@ -9,6 +9,14 @@ Hostnames:
 
 ---
 
+## 2026-08-21 — Model league now uses real £100m FPL squads
+
+- **Host:** `plesk.ashbystudios.com`
+- **Who:** `fplpredictor`
+- **Done:** pulled `74335a2` then lock-without-rebuild follow-up. `systemctl restart fpl-predictor`. Ran `scripts/run_daily_refresh.py` after the squad commit: models A–D runs 9–12. League GW1 squads: A 3-4-3 Watkins C £100.0m; B 4-4-2 Watkins C £100.0m; C 5-4-1 B.Fernandes C £100.0m; D 5-4-1 B.Fernandes C £97.5m. 15-man squads, XI, captain, max 3 per club. Still provisional until 17:30 UTC deadline, then the existing squad locks (no rebuild).
+- **Note:** stashed local `docs/PREDICTIONS_2026_27_GW1.md` so pull could fast-forward.
+- **Follow-up:** hard-refresh `https://fpl.ashbystudios.com/league`.
+
 ## 2026-08-21 — Deploy Model D CS calibration + live league; rerun GW1
 
 - **Host:** `plesk.ashbystudios.com`

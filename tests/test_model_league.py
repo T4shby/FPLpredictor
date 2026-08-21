@@ -82,3 +82,21 @@ def test_locked_squad_is_not_rewritten():
         assert len(table["standings"][0]["latest"]["starters"]) == 11
     finally:
         session.close()
+
+
+def test_deadline_locks_existing_squad_without_rebuild():
+    init_db()
+    session = get_session_factory()()
+    try:
+        session.query(ModelSquad).delete()
+        session.commit()
+        future = datetime.now(timezone.utc) + timedelta(days=2)
+        freeze_model_picks(session, _result(future, shift=0))
+        captain = session.query(ModelSquad).filter_by(model_key="A", event_id=1).one().captain_element
+        past = datetime.now(timezone.utc) - timedelta(hours=1)
+        freeze_model_picks(session, _result(past, shift=1))
+        row = session.query(ModelSquad).filter_by(model_key="A", event_id=1).one()
+        assert row.locked is True
+        assert row.captain_element == captain
+    finally:
+        session.close()
