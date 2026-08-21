@@ -9,6 +9,14 @@ Hostnames:
 
 ---
 
+## 2026-08-21 — Deploy Model D CS calibration + live league; rerun GW1
+
+- **Host:** `plesk.ashbystudios.com`
+- **Who:** `fplpredictor`
+- **Done:** `git pull --ff-only origin main` to `6d870a5`. `sudo systemctl restart fpl-predictor` (active). Ran `scripts/run_daily_refresh.py` (~19s, 600 players). New model runs 5–8. `/league` HTTP 200. Model D top is now B.Fernandes (5.82), not a Brighton defender; CS component capped (~1.66). League GW1 picks (still provisional before 17:30 UTC deadline): A/B Watkins, C/D B.Fernandes, actuals 0.
+- **Note:** server still has a local uncommitted `docs/PREDICTIONS_2026_27_GW1.md` from the refresh.
+- **Follow-up:** hard-refresh `https://fpl.ashbystudios.com` and open `/league`.
+
 ## 2026-08-21 — Model A/B/C/D tabs on the live site
 
 - **Host:** `plesk.ashbystudios.com`
