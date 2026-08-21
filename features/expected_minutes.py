@@ -7,7 +7,7 @@ import pandas as pd
 POSITION_MINUTE_PRIOR = {"GKP": 70.0, "DEF": 60.0, "MID": 55.0, "FWD": 50.0}
 
 
-def expected_minutes_frame(df: pd.DataFrame) -> pd.DataFrame:
+def expected_minutes_frame(df: pd.DataFrame, apply_last_match_injury: bool = True) -> pd.DataFrame:
     """Vectorised expected minutes for a feature frame."""
     n_fx = np.asarray(pd.to_numeric(df.get("n_fixtures_upcoming", 1), errors="coerce").fillna(1), dtype=float)
     n_fx = np.clip(n_fx, 1, None)
@@ -31,7 +31,7 @@ def expected_minutes_frame(df: pd.DataFrame) -> pd.DataFrame:
     exp_gw = np.where(n_matches <= 0, prior * 0.6, exp_gw)
     p_start = np.where(n_matches <= 0, 0.45, starts3 / n3)
     p_60 = np.where(n_matches <= 0, 0.35, np.minimum(1.0, avg3 / 90.0))
-    injured = (last_minutes == 0) & (avg5 >= 45) & (n_matches > 0)
+    injured = (last_minutes == 0) & (avg5 >= 45) & (n_matches > 0) & apply_last_match_injury
     exp_gw = np.where(injured, exp_gw * 0.55, exp_gw)
     p_start = np.where(injured, p_start * 0.6, p_start)
     p_60 = np.where(injured, p_60 * 0.5, p_60)
@@ -43,6 +43,9 @@ def expected_minutes_frame(df: pd.DataFrame) -> pd.DataFrame:
     out["expected_minutes"] = np.clip(per_fixture, 0, 90)
     out["start_probability"] = np.clip(p_start, 0, 0.99)
     out["p_60"] = np.clip(np.minimum(p_60, p_start), 0, 0.99)
+    out["expected_minutes"] = pd.to_numeric(out["expected_minutes"], errors="coerce").fillna(0.0)
+    out["start_probability"] = pd.to_numeric(out["start_probability"], errors="coerce").fillna(0.0)
+    out["p_60"] = pd.to_numeric(out["p_60"], errors="coerce").fillna(0.0)
     return out
 
 

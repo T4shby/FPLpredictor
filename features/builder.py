@@ -91,7 +91,17 @@ def build_upcoming_features(
     ]
     merged = upcoming.merge(latest_players[hist_cols], on="element", how="left") if not latest_players.empty else upcoming
     fixture_level = attach_fixture_ratings(merged, ratings, use_xg=use_xg_ratings)
-    fixture_level = expected_minutes_frame(fixture_level)
+    season_start = False
+    if "GW" in upcoming.columns and not upcoming.empty:
+        season_start = int(pd.to_numeric(upcoming["GW"], errors="coerce").fillna(99).min()) <= 2
+    cross_season = False
+    if season and not history.empty and "season" in history.columns:
+        last_hist_season = str(history.sort_values("timeline" if "timeline" in history.columns else "GW").iloc[-1]["season"])
+        cross_season = last_hist_season != str(season)
+    fixture_level = expected_minutes_frame(
+        fixture_level,
+        apply_last_match_injury=not cross_season and not season_start,
+    )
 
     if include_h2h and not history.empty:
         matches = unique_team_matches(history)

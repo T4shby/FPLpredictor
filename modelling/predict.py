@@ -52,18 +52,21 @@ def _num(row: pd.Series, key: str, default: float = 0.0) -> float:
 
 def weighted_pp90(row: pd.Series) -> float:
     prior = POSITION_PP90_PRIOR.get(str(row.get("position", "MID")), 4.0)
+    minutes_sample = _num(row, "minutes_l8")
     n = _num(row, "minutes_prev_matches")
+    if minutes_sample < 90:
+        return prior
     parts = []
     weights = []
     for col, weight in (("pp90_l3", 0.5), ("pp90_l5", 0.3), ("pp90_l8", 0.2)):
         value = row.get(col)
         if value is not None and not (isinstance(value, float) and np.isnan(value)):
-            parts.append(float(value))
+            parts.append(float(np.clip(value, 0.0, 12.0)))
             weights.append(weight)
     if not parts:
         return prior
     observed = float(np.average(parts, weights=weights))
-    shrink = n / (n + 6)
+    shrink = minutes_sample / (minutes_sample + 270.0)
     return (1 - shrink) * prior + shrink * observed
 
 
@@ -107,6 +110,9 @@ def explain_prediction(row: pd.Series, spec: ModelSpec, xpts: float, components:
     return {
         "xpts": round(xpts, 3),
         "model": spec.name,
+        "name": row.get("name"),
+        "team": row.get("team"),
+        "position": row.get("position"),
         "positives": positives,
         "negatives": negatives,
         "components": components,
@@ -116,9 +122,11 @@ def explain_prediction(row: pd.Series, spec: ModelSpec, xpts: float, components:
 def predict_row(row: pd.Series, spec: ModelSpec, rules: dict | None = None) -> dict:
     rules = rules or load_scoring_rules()
     position = str(row.get("position") or "MID")
-    exp_min = _num(row, "expected_minutes", 45)
-    p_start = _num(row, "start_probability", 0.5)
-    p_60 = _num(row, "p_60", 0.4)
+    exp_min = _num(row, "expected_minutes", 0.0)
+    p_start = _num(row, "start_probability", 0.0)
+    p_60 = _num(row, "p_60", 0.0)
+    if exp_min <= 0:
+        return _pack(row, spec, 0.0, {"appearance": 0.0, "form_projection": 0.0})
     pp90 = weighted_pp90(row)
     form_xpts = exp_min / 90.0 * pp90
 
@@ -209,7 +217,8 @@ def predict_row(row: pd.Series, spec: ModelSpec, rules: dict | None = None) -> d
         "cards": round(cards, 3),
         "form_projection": round(form_xpts, 3),
     }
-    return _pack(row, spec, float(max(xpts, 0.0)), components)
+    xpts = float(np.clip(max(xpts, 0.0), 0.0, 18.0))
+    return _pack(row, spec, xpts, components)
 
 
 def _pack(row: pd.Series, spec: ModelSpec, xpts: float, components: dict) -> dict:

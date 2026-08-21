@@ -10,17 +10,17 @@ This is not a flashy dashboard. The first deliverable is a walk-forward backtest
 
 - Project layout, scoring-rule config, FPL adapter, validation
 - Historical 2024/25 and 2025/26 import (29,747 player-gameweek rows after de-duplication; 841 players; 38 GWs)
-- Leakage tests and API/health tests (`17 passed`)
+- Leakage tests and API/health tests (`18 passed`)
 - Walk-forward 2025/26 backtest of Models A–D — see `docs/BACKTEST_2025-26.md`
 - FastAPI health/status/rankings, 09:00 Europe/London worker, Docker Compose files
+- Current 2026/27 GW1 predictions with real next-1/3/5 fixture sums — see `docs/PREDICTIONS_2026_27_GW1.md`
 
 **TODO / NOT YET VERIFIED**
 
-- Current 2026/27 Gameweek 1 published rankings (importer exists; not run end-to-end as a freeze in this session)
 - Next.js UI
 - Transfer / squad ILP optimiser
-- Honest next-3 / next-5 fixture-by-fixture projections (currently scaled placeholders)
 - Recalibrating Model D so ranking quality does not inflate MAE
+- Production Docker on the Ubuntu VPS
 
 ## Quick start (local, no Docker)
 
@@ -33,6 +33,7 @@ python scripts/download_historical.py
 python scripts/inspect_historical.py
 pytest
 python scripts/run_backtest.py
+python scripts/predict_current.py
 ```
 
 Default local database is SQLite (`fpl_local.db`). Production uses PostgreSQL via Docker Compose.
@@ -50,4 +51,5 @@ The worker uses APScheduler with `timezone=Europe/London`, cron 09:00. That foll
 - `docs/DEPLOYMENT.md`
 - `docs/OPERATIONS.md`
 - `docs/BACKUP_RESTORE.md`
-- `docs/DECISION_LOG.md`
+- `docs/BACKTEST_2025-26.md`
+- `docs/PREDICTIONS_2026_27_GW1.md`

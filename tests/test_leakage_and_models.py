@@ -134,6 +134,30 @@ def test_appearance_points_use_config_not_hardcoded_literals():
     assert appearance_points(rules, expected_minutes=20, p_start=0.8, p_60=0) == 0.8
 
 
+def test_null_playing_chance_is_available():
+    import pandas as pd
+    from worker.predict_current import _availability_scale
+
+    row = pd.Series({"chance_of_playing_next_round": float("nan"), "status": "a"})
+    assert _availability_scale(row, gw=1, target_gw=1) == 1.0
+    import pandas as pd
+    from modelling.predict import MODEL_A, predict_row
+
+    row = pd.Series(
+        {
+            "element": 1,
+            "GW": 1,
+            "name": "Bench",
+            "team": "Arsenal",
+            "position": "MID",
+            "expected_minutes": 0,
+            "pp90_l3": 90,
+            "minutes_l8": 10,
+        }
+    )
+    assert predict_row(row, MODEL_A)["xpts"] == 0
+
+
 def test_model_a_returns_predictions_without_using_fixture_columns():
     df = _toy_season()
     history = df[df["GW"] < 4]

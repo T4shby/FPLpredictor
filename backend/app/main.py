@@ -89,7 +89,7 @@ def status(session: Session = Depends(db_session)):
 
 @app.get("/api/v1/rankings")
 def rankings(
-    model: str = Query(default="D"),
+    model: str = Query(default="B"),
     position: str | None = None,
     limit: int = 50,
     session: Session = Depends(db_session),
@@ -106,11 +106,17 @@ def rankings(
     rows = query.order_by(PlayerPrediction.xpts_gw.desc()).limit(500).all()
     payload = []
     for row in rows:
-        if position and (row.explanation or {}).get("position") != position:
+        expl = row.explanation or {}
+        if position and expl.get("position") != position:
+            continue
+        if (row.expected_minutes or 0) < 1:
             continue
         payload.append(
             {
                 "element": row.fpl_element_id,
+                "name": expl.get("name"),
+                "team": expl.get("team"),
+                "position": expl.get("position"),
                 "event_id": row.event_id,
                 "xpts_gw": row.xpts_gw,
                 "xpts_3gw": row.xpts_3gw,
@@ -119,7 +125,7 @@ def rankings(
                 "start_probability": row.start_probability,
                 "attack_fixture_rating": row.attack_fixture_rating,
                 "defence_fixture_rating": row.defence_fixture_rating,
-                "explanation": row.explanation,
+                "explanation": expl,
             }
         )
         if len(payload) >= limit:
