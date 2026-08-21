@@ -19,7 +19,7 @@ This is not a flashy dashboard. The first deliverable is a walk-forward backtest
 
 **TODO / NOT YET VERIFIED**
 
-- Transfer / squad ILP optimiser
+- Transfer / squad ILP optimiser — **v0.1 squad picker is live for the model league** (£100m, 15, XI, 1 FT after GW1). Hits and price-change selling are not in yet.
 - Recalibrating Model D so ranking quality does not inflate MAE — **v0.1.1 formula is in code; 2025/26 walk-forward not re-run yet**
 - Production Docker on the Ubuntu VPS
 

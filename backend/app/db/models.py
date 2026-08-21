@@ -251,6 +251,30 @@ class ModelGwPick(Base):
     scored_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class ModelSquad(Base):
+    """Frozen FPL squad (15 + XI + captain) per model per Gameweek."""
+
+    __tablename__ = "model_squads"
+    __table_args__ = (UniqueConstraint("season", "event_id", "model_key", name="uq_model_squad"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    season: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    event_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    model_key: Mapped[str] = mapped_column(String(16), nullable=False)
+    formation: Mapped[str] = mapped_column(String(16), default="")
+    captain_element: Mapped[int] = mapped_column(Integer, nullable=False)
+    vice_element: Mapped[int] = mapped_column(Integer, nullable=False)
+    cost_tenths: Mapped[int] = mapped_column(Integer, default=0)
+    bank_tenths: Mapped[int] = mapped_column(Integer, default=0)
+    xpts_xi: Mapped[float] = mapped_column(Float, default=0)
+    actual_points: Mapped[float | None] = mapped_column(Float, nullable=True)
+    n_transfers: Mapped[int] = mapped_column(Integer, default=0)
+    players: Mapped[list] = mapped_column(JSONType, nullable=False)
+    locked: Mapped[bool] = mapped_column(Boolean, default=False)
+    frozen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    scored_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class BacktestRun(Base):
     __tablename__ = "backtest_runs"
 

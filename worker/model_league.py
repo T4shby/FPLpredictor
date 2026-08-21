@@ -5,26 +5,10 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from backend.app.core.settings import get_settings
-from backend.app.db.models import ModelGwPick
+from backend.app.db.models import ModelSquad
 from data.clients.fpl_client import FplClient
 from modelling.predict import ALL_MODELS
-
-
-def _best_overall(frame):
-    available = frame[
-        frame["status"].fillna("a").isin(["a", "d"])
-        & (frame["expected_minutes"].fillna(0) >= 30)
-    ]
-    if available.empty:
-        return None
-    row = available.sort_values("xpts_gw", ascending=False).iloc[0]
-    return {
-        "element": int(row["element"]),
-        "name": str(row.get("name") or ""),
-        "team": str(row.get("team") or ""),
-        "position": str(row.get("position") or ""),
-        "xpts_gw": float(row.get("xpts_gw") or 0),
-    }
+from optimisation.squad import apply_one_transfer, frame_to_players, score_squad, select_squad, trim_pool
 
 
 def _parse_deadline(value) -> datetime | None:
@@ -52,53 +36,91 @@ def _should_lock(result: dict) -> bool:
     return bool(deadline and now >= deadline)
 
 
+def _previous_squad(session: Session, season: str, model_key: str, event_id: int) -> ModelSquad | None:
+    return (
+        session.query(ModelSquad)
+        .filter(
+            ModelSquad.season == season,
+            ModelSquad.model_key == model_key,
+            ModelSquad.event_id < event_id,
+            ModelSquad.locked.is_(True),
+        )
+        .order_by(ModelSquad.event_id.desc())
+        .first()
+    )
+
+
+def _build_squad(session: Session, result: dict, model_key: str, frame) -> dict:
+    pool = trim_pool(frame_to_players(frame))
+    prev = _previous_squad(session, result["season"], model_key, int(result["target_gw"]))
+    if prev is not None:
+        owned = [
+            {
+                "element": int(p["element"]),
+                "name": p.get("name") or "",
+                "team": p.get("team") or "",
+                "position": p.get("position") or "",
+                "now_cost": int(p.get("now_cost") or 0),
+                "xpts_gw": float(p.get("xpts_gw") or 0),
+                "expected_minutes": float(p.get("expected_minutes") or 0),
+            }
+            for p in (prev.players or [])
+        ]
+        return apply_one_transfer(owned, pool)
+    return select_squad(pool)
+
+
 def freeze_model_picks(session: Session, result: dict) -> list[dict]:
-    """Keep each model's GW player current until deadline, then lock. Never rewrite a locked pick."""
+    """Build/refresh each model's £100m squad until deadline, then lock. Never rewrite a locked squad."""
     now = datetime.now(timezone.utc)
     lock = _should_lock(result)
     frozen = []
     for spec in ALL_MODELS:
         frame = result["frames"].get(spec.key)
-        if frame is None or frame.empty:
-            continue
-        overall = _best_overall(frame)
-        if overall is None:
+        if frame is None or getattr(frame, "empty", True):
             continue
         existing = (
-            session.query(ModelGwPick)
+            session.query(ModelSquad)
             .filter_by(season=result["season"], event_id=int(result["target_gw"]), model_key=spec.key)
             .one_or_none()
         )
         if existing is not None and existing.locked:
-            frozen.append({"model": spec.key, "status": "locked", "name": existing.name})
+            captain = next((p for p in existing.players if p.get("element") == existing.captain_element), {})
+            frozen.append({"model": spec.key, "status": "locked", "name": captain.get("name"), "formation": existing.formation})
             continue
+        built = _build_squad(session, result, spec.key, frame)
+        payload = dict(
+            formation=built["formation"],
+            captain_element=int(built["captain_element"]),
+            vice_element=int(built["vice_element"]),
+            cost_tenths=int(built["cost_tenths"]),
+            bank_tenths=int(built["bank_tenths"]),
+            xpts_xi=float(built["xpts_xi"]),
+            n_transfers=int(built["n_transfers"]),
+            players=built["players"],
+            locked=lock,
+            frozen_at=now,
+        )
         if existing is None:
-            existing = ModelGwPick(
-                season=result["season"],
-                event_id=int(result["target_gw"]),
-                model_key=spec.key,
-                fpl_element_id=int(overall["element"]),
-                name=str(overall["name"]),
-                team=str(overall.get("team") or ""),
-                position=str(overall.get("position") or ""),
-                xpts_gw=float(overall.get("xpts_gw") or 0),
-                locked=lock,
-                frozen_at=now,
+            session.add(
+                ModelSquad(
+                    season=result["season"],
+                    event_id=int(result["target_gw"]),
+                    model_key=spec.key,
+                    **payload,
+                )
             )
-            session.add(existing)
         else:
-            existing.fpl_element_id = int(overall["element"])
-            existing.name = str(overall["name"])
-            existing.team = str(overall.get("team") or "")
-            existing.position = str(overall.get("position") or "")
-            existing.xpts_gw = float(overall.get("xpts_gw") or 0)
-            existing.locked = lock
-            existing.frozen_at = now
+            for key, value in payload.items():
+                setattr(existing, key, value)
+        captain = next((p for p in built["players"] if p["element"] == built["captain_element"]), {})
         frozen.append(
             {
                 "model": spec.key,
                 "status": "locked" if lock else "provisional",
-                "name": overall["name"],
+                "name": captain.get("name"),
+                "formation": built["formation"],
+                "cost": built["cost_tenths"] / 10.0,
             }
         )
     session.commit()
@@ -106,13 +128,12 @@ def freeze_model_picks(session: Session, result: dict) -> list[dict]:
 
 
 def update_actual_points(session: Session, event_id: int | None = None) -> list[dict]:
-    """Fill/refresh actual FPL points for picks. Player lock stays; points can rise during the GW."""
     settings = get_settings()
-    query = session.query(ModelGwPick).filter(ModelGwPick.season == settings.current_season)
+    query = session.query(ModelSquad).filter(ModelSquad.season == settings.current_season)
     if event_id is not None:
-        query = query.filter(ModelGwPick.event_id == event_id)
-    picks = query.all()
-    if not picks:
+        query = query.filter(ModelSquad.event_id == event_id)
+    rows = query.all()
+    if not rows:
         return []
     client = FplClient()
     bootstrap = client.bootstrap_static()
@@ -120,66 +141,77 @@ def update_actual_points(session: Session, event_id: int | None = None) -> list[
     live_points = {int(el["id"]): float(el.get("event_points") or 0) for el in bootstrap.get("elements") or []}
     updated = []
     now = datetime.now(timezone.utc)
-    live_cache: dict[int, dict[int, float]] = {}
-    for pick in picks:
-        ev = events.get(pick.event_id) or {}
-        points = None
-        if ev.get("is_current") or ev.get("is_next"):
-            points = live_points.get(pick.fpl_element_id)
-        if (ev.get("finished") or ev.get("is_current")) and pick.event_id not in live_cache:
-            try:
-                payload = client.event_live(pick.event_id)
-                live_cache[pick.event_id] = {
-                    int(row["id"]): float((row.get("stats") or {}).get("total_points") or 0)
-                    for row in payload.get("elements") or []
-                }
-            except Exception:
-                live_cache[pick.event_id] = {}
-        if pick.event_id in live_cache and pick.fpl_element_id in live_cache[pick.event_id]:
-            points = live_cache[pick.event_id][pick.fpl_element_id]
-        if points is None:
-            continue
-        pick.actual_points = points
-        pick.scored_at = now
-        updated.append({"model": pick.model_key, "event_id": pick.event_id, "actual": points})
+    live_cache: dict[int, dict[int, dict]] = {}
+    for row in rows:
+        ev = events.get(row.event_id) or {}
+        if row.event_id not in live_cache:
+            stats: dict[int, dict] = {
+                eid: {"points": pts, "minutes": 0} for eid, pts in live_points.items()
+            }
+            if ev.get("finished") or ev.get("is_current"):
+                try:
+                    payload = client.event_live(row.event_id)
+                    for item in payload.get("elements") or []:
+                        eid = int(item["id"])
+                        st = item.get("stats") or {}
+                        stats[eid] = {
+                            "points": float(st.get("total_points") or live_points.get(eid) or 0),
+                            "minutes": int(st.get("minutes") or 0),
+                        }
+                except Exception:
+                    pass
+            live_cache[row.event_id] = stats
+        scored = score_squad(
+            row.players or [],
+            row.captain_element,
+            row.vice_element,
+            live_cache[row.event_id],
+            bool(ev.get("finished")),
+        )
+        row.actual_points = scored["actual_points"]
+        row.scored_at = now
+        updated.append({"model": row.model_key, "event_id": row.event_id, "actual": scored["actual_points"]})
     session.commit()
     return updated
 
 
 def league_table(session: Session) -> dict:
     settings = get_settings()
-    rows = session.query(ModelGwPick).filter(ModelGwPick.season == settings.current_season).all()
+    rows = session.query(ModelSquad).filter(ModelSquad.season == settings.current_season).all()
     by_model: dict[str, dict] = {}
     for spec in ALL_MODELS:
-        by_model[spec.key] = {
-            "model": spec.key,
-            "name": spec.name,
-            "total": 0.0,
-            "weeks": [],
-        }
-    for pick in rows:
-        bucket = by_model.setdefault(
-            pick.model_key,
-            {"model": pick.model_key, "name": pick.model_key, "total": 0.0, "weeks": []},
-        )
-        actual = pick.actual_points
+        by_model[spec.key] = {"model": spec.key, "name": spec.name, "total": 0.0, "weeks": []}
+    for row in rows:
+        bucket = by_model.setdefault(row.model_key, {"model": row.model_key, "name": row.model_key, "total": 0.0, "weeks": []})
+        actual = row.actual_points
         if actual is not None:
             bucket["total"] += float(actual)
+        players = row.players or []
+        captain = next((p for p in players if p.get("element") == row.captain_element), {})
+        vice = next((p for p in players if p.get("element") == row.vice_element), {})
         bucket["weeks"].append(
             {
-                "event_id": pick.event_id,
-                "name": pick.name,
-                "team": pick.team,
-                "position": pick.position,
-                "element": pick.fpl_element_id,
-                "xpts_gw": pick.xpts_gw,
+                "event_id": row.event_id,
+                "formation": row.formation,
+                "captain": captain.get("name"),
+                "captain_element": row.captain_element,
+                "vice": vice.get("name"),
+                "vice_element": row.vice_element,
+                "cost": round(row.cost_tenths / 10.0, 1),
+                "bank": round(row.bank_tenths / 10.0, 1),
+                "xpts_xi": row.xpts_xi,
                 "actual_points": actual,
-                "locked": pick.locked,
-                "frozen_at": pick.frozen_at.isoformat() if pick.frozen_at else None,
+                "n_transfers": row.n_transfers,
+                "locked": row.locked,
+                "starters": [p for p in players if p.get("starter")],
+                "bench": [p for p in players if not p.get("starter")],
+                "frozen_at": row.frozen_at.isoformat() if row.frozen_at else None,
             }
         )
     standings = sorted(by_model.values(), key=lambda row: (-row["total"], row["model"]))
     for row in standings:
         row["weeks"] = sorted(row["weeks"], key=lambda week: week["event_id"])
         row["total"] = round(row["total"], 1)
+        latest = row["weeks"][-1] if row["weeks"] else None
+        row["latest"] = latest
     return {"season": settings.current_season, "standings": standings}
